@@ -50,3 +50,16 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+#keil
+*.__i
+*.crf
+*.axf
+*.htm
+*.lnp
+*.sct
+.dep
+**/Project/*
+**/Output/*
+!*.uvprojx
+*.code-workspace
