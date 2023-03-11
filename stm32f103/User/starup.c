@@ -7,6 +7,7 @@
 #include "bsp_systick.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "spi.h"
 #if 0
  // uint8_t flag = 0;
     uint32_t e;
@@ -104,7 +105,7 @@
         // delay(0xffff);
     }
 #endif
-#define tskIDLE_PRIORITY    (portPRIVILEGE_BIT + 1)
+#define LED_PRIORITY    		2
 #define tskSTACK_SIZE       (128)
 TaskHandle_t xHandle1 = NULL;
 TaskHandle_t xHandle2 = NULL;
@@ -113,7 +114,7 @@ static void task1(void * pvParameters)
 {
     for(;;) {
         PBout(5) = !PBout(5);
-        vTaskDelay(200);
+        vTaskDelay(20);
     }
 }
 
@@ -121,15 +122,24 @@ static void task2(void * pvParameters)
 {
     for(;;) {
         PAout(5) = !PAout(5);
-        vTaskDelay(200);
+        vTaskDelay(20);
     }
 }
 int main(void)
 {
-    xTaskCreate(task1, "task1", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle1);
-    xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle2);
-    configASSERT(xHandle1);
-    configASSERT(xHandle2);
-    vTaskStartScheduler();
+    uint8_t send_data[256];
+    uint32_t i;
+    led_init();
+    SerialPortInit(BAUD_RATE_115200);
+    spi_Init();
+    printf("SPI SLAVE\r\n");
+    while(1) {
+        recv_display();
+    }
+    //xTaskCreate(task1, "task1", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle1);
+    // xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, LED_PRIORITY, &xHandle2);
+    // //configASSERT(xHandle1);
+    // configASSERT(xHandle2);
+    // vTaskStartScheduler();
 }
 
