@@ -18,7 +18,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-/*
+/**
  * Get offset of a member variable.
  *
  * @param[in]   type     the type of the struct this is embedded in.
@@ -26,7 +26,7 @@ extern "C" {
  */
 #define offsetof(type, member)   ((size_t)&(((type *)0)->member))
 
-/*
+/**
  * Get the struct for this entry.
  *
  * @param[in]   ptr     the list head to take the element from.
@@ -37,7 +37,7 @@ extern "C" {
     ((type *) ((char *) (ptr) - offsetof(type, member)))
 
 
-/*
+/**
 * Iterate over list of given type.
 *
 * @param[in]   queue   he head for your list.
@@ -50,7 +50,7 @@ extern "C" {
          node;                                        \
          node = node->member.next ? container_of(node->member.next, type, member) : NULL)
 
-/*
+/**
  * Get the struct for this entry.
  * @param[in]   ptr     the list head to take the element from.
  * @param[in]   type    the type of the struct this is embedded in.
