@@ -1,14 +1,14 @@
 /**
   ******************************************************************************
-  * @file    list.h
+  * @file    bsp_list.h
   * @author  Rougga
   * @version V0.1
   * @date    15-March-2023
   * @brief   This file contains all the functions prototypes for the devices firmware 
   *          library.
   ******************************************************************************/
- #ifndef LIST_H
- #define LIST_H
+ #ifndef BSP_LIST_H
+ #define BSP_LIST_H
 
 #ifdef __cplusplus
 extern "C" {

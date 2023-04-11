@@ -1,7 +1,9 @@
 #include "bsp_systick.h"
+#include "error.h"
 
 uint32_t __IO tick;
-
+__IO uint32_t uwTick;
+uint32_t uwTickFreq = 1U;
 static uint8_t fac_us;
 static uint16_t fac_ms;
 
@@ -13,6 +15,32 @@ void Systick_Init(void)
 	SysTick->CTRL|=SysTick_CTRL_ENABLE_Msk ;	//开始倒数
     fac_us = SystemCoreClock / 8000000;
     fac_ms = fac_us * 1000;
+}
+
+uint32_t SystickInit(void)
+{
+	// 1ms
+	if (SysTick_Config(SystemCoreClock / 1000) > 0)
+	{
+		return RS_ERROR;
+	}
+	return RS_OK;
+}
+
+void Delay(uint32_t Delay)
+{
+	uint32_t tickstart = tick_get();
+	uint32_t wait = Delay;
+
+	if(wait < 0xFFFFFFFF)
+	{
+		wait += (uint32_t)uwTickFreq;
+	}
+	while ((tick_get() - tickstart) < wait)
+	{
+		
+	}
+	
 }
 
 //延时nus
@@ -45,6 +73,11 @@ void delay_ms(u32 nms)
 	SysTick->VAL =0X00;      					 //清空计数器	 
 }
 
+void IncTick(void)
+{
+	uwTick += uwTickFreq;
+}
+
 void tick_set(uint32_t tick)
 {
     
@@ -52,6 +85,5 @@ void tick_set(uint32_t tick)
 
 uint32_t tick_get(void)
 {
-    tick = SysTick->VAL;
-    return tick;
+    return uwTick;
 }

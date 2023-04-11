@@ -23,6 +23,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
+#include "lwip/opt.h"
+#include "bsp_systick.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Template
   * @{
@@ -127,14 +131,33 @@ void DebugMon_Handler(void)
 // {
 // }
 
+u32_t sys_now(void)
+{
+  return tick_get();
+}
+
 /**
   * @brief  This function handles SysTick Handler.
   * @param  None
   * @retval None
   */
-// void SysTick_Handler(void)
-// {
-// }
+extern void xPortSysTickHandler(void);
+void SysTick_Handler(void)
+{
+  uint32_t ulReturn;
+  ulReturn = taskENTER_CRITICAL_FROM_ISR();
+  IncTick();
+#if (INCLUDE_xTaskGetSchedulerState == 1)
+  if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+  {
+#endif /* INCLUDE_xTaskGetSchedulerState */
+    xPortSysTickHandler();
+#if (INCLUDE_xTaskGetSchedulerState == 1)
+  }
+#endif /* INCLUDE_xTaskGetSchedulerState */
+
+  taskEXIT_CRITICAL_FROM_ISR(ulReturn);
+}
 
 /******************************************************************************/
 /*                 STM32F10x Peripherals Interrupt Handlers                   */

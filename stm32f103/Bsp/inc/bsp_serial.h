@@ -25,6 +25,8 @@ extern "C"
 #define BAUD_RATE_2000000               2000000
 #define BAUD_RATE_3000000               3000000
 
+int fgetc(FILE* f);
+int fputc( int ch, FILE *f);
 void Send_Byte(USART_TypeDef *USARTx, uint16_t byte);
 uint8_t Receive_Byte(USART_TypeDef *USARTx);
 void SerialPortInit(unsigned long ulWantedBaud);
