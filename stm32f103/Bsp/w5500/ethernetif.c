@@ -68,9 +68,14 @@ struct ethernetif {
   struct eth_addr *ethaddr;
   /* Add whatever per-interface state that is needed here. */
 };
-
+SemaphoreHandle_t s_xSemaphore = NULL;
 /* Forward declarations. */
 void  ethernetif_input(struct netif *netif);
+
+void w5500_IR_clr(void) {
+  setSn_IR(0, 0x1F);
+  setSIR(0);
+}
 
 /**
  * In this function, the hardware should be initialized.
@@ -107,12 +112,18 @@ low_level_init(struct netif *netif)
   /* maximum transfer unit */
   netif->mtu = MAX_MTU;
   
-  #if LWIP_ARP
-    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
-  #else 
-    netif->flags |= NETIF_FLAG_BROADCAST;
-  #endif /* LWIP_ARP */
+#if LWIP_ARP
+  netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
+#else 
+  netif->flags |= NETIF_FLAG_BROADCAST;
+#endif /* LWIP_ARP */
 
+  s_xSemaphore = xSemaphoreCreateCounting(40, 0);
+  sys_thread_new("ETHIN", 
+                  ethernet_input, 
+                  netif, 
+                  NETIF_IN_TASK_STACK_SIZE, 
+                  NETIF_IN_TASK_PRIORITY);
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 
   /* Do whatever else is needed to initialize interface. */
@@ -284,7 +295,47 @@ TRY_GET_NEXT_FRAGMENT:
 #else
 void ethernetif_input(void *pvParameters)
 {
+  struct netif *netif;
+	struct pbuf *p = NULL;
+  uint8_t linkstate;
+	netif = (struct netif*) pvParameters;
+  LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
   
+	while(1) 
+  {
+    // w5500_IR_clr();
+    // volatile uint8_t phyReg = getPHYCFGR();
+    // linkstate = phyReg & (1 << 0);
+    // if (linkstate && !netif_is_link_up(netif))
+    // {
+    //   netif_set_link_up(netif);
+    // }
+    // else if (!linkstate && netif_is_link_up(netif))
+    // {
+    //   netif_set_link_down(netif);
+    // }
+    if(xSemaphoreTake( s_xSemaphore, portMAX_DELAY ) == pdTRUE)
+    {
+      /* move received packet into a new pbuf */
+      taskENTER_CRITICAL();
+      w5500_IR_clr();
+      p = low_level_input(netif);
+      taskEXIT_CRITICAL();
+      /* points to packet payload, which starts with an Ethernet header */
+      if(p != NULL)
+      {
+        taskENTER_CRITICAL();
+        /* full packet send to tcpip_thread to process */
+        if (netif->input(p, netif) != ERR_OK)
+        {
+          LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
+          pbuf_free(p);
+          p = NULL;
+        }
+        taskEXIT_CRITICAL();
+      }
+    }
+	}
 }
 
 #endif /* NO_SYS */

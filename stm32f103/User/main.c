@@ -150,6 +150,7 @@ static void task2(void * pvParameters)
  ip4_addr_t netmask;
  ip4_addr_t gw;
 
+#if NO_SYS
  void LwIP_Init(void)
  {
   /* IP addresses initialization */
@@ -187,6 +188,11 @@ static void task2(void * pvParameters)
         (((gnetif.ip_addr.addr)&0x00ff0000)>>16), \
         ((gnetif.ip_addr.addr)&0xff000000)>>24);
  }
+#endif /* NO_SYS */
+void LwIP_Init(void)
+{
+    
+}
 
 #define TCP_ECHO_PORT 5001
 

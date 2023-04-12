@@ -3,6 +3,7 @@
 #include "bsp_serial.h"
 #include "bsp_usart.h"
 #include <stdlib.h>
+#include "main.h"
 
 static SPI_TypeDef *SPIx = NULL;
 
@@ -62,14 +63,20 @@ static void W5500_config(void)
     SPI_Cmd(SPI1, ENABLE);
     // SPI_I2S_ITConfig(SPI1, SPI_I2S_IT_RXNE, ENABLE);
 }
-
+extern xSemaphoreHandle s_xSemaphore;
 void EXTI1_IRQHandler(void)
 {
+    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+    uint32_t ulReturn;
+    ulReturn = taskENTER_CRITICAL_FROM_ISR();
     if(EXTI_GetITStatus(EXTI_Line1) != RESET)
     {
         printf("w5500 INT\r\n");
         EXTI_ClearITPendingBit(EXTI_Line1);
+        xSemaphoreGiveFromISR(s_xSemaphore, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
+    taskEXIT_CRITICAL_FROM_ISR(ulReturn);
 }
 
 static void W5500_reset(void)

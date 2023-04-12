@@ -5,7 +5,8 @@
 #include "lwip/netif.h"
 
 #define MAX_MTU             (1500U)
-
+#define NETIF_IN_TASK_STACK_SIZE			( 1024 )
+#define NETIF_IN_TASK_PRIORITY			    ( 3 )
 
 err_t ethernetif_init(struct netif *netif);
 
