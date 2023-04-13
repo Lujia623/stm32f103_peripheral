@@ -31,7 +31,7 @@ extern "C" {
 #define W5500_SPI_MISO_PORT
 #define W5500_SPI_MISO_PIN
 
-uint8_t W5500_lwip_init(void);
+int8_t W5500_lwip_init(void);
 void  wizchip_cs_select(void);
 void wizchip_cs_deselect(void);
 void wizchip_spi_writebyte(uint8_t wb);

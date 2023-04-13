@@ -70,7 +70,7 @@ struct ethernetif {
 };
 SemaphoreHandle_t s_xSemaphore = NULL;
 /* Forward declarations. */
-void  ethernetif_input(struct netif *netif);
+void ethernetif_input(void *pvParameters);
 
 void w5500_IR_clr(void) {
   setSn_IR(0, 0x1F);
@@ -120,7 +120,7 @@ low_level_init(struct netif *netif)
 
   s_xSemaphore = xSemaphoreCreateCounting(40, 0);
   sys_thread_new("ETHIN", 
-                  ethernet_input, 
+                  ethernetif_input, 
                   netif, 
                   NETIF_IN_TASK_STACK_SIZE, 
                   NETIF_IN_TASK_PRIORITY);
@@ -149,6 +149,7 @@ static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
   struct ethernetif *ethernetif = netif->state;
+	(void)ethernetif;
   struct pbuf *q;
   uint16_t freeSize= getSn_TX_FSR(0);
   uint16_t length = p->tot_len;
@@ -181,7 +182,8 @@ static struct pbuf *
 low_level_input(struct netif *netif)
 {
   struct ethernetif *ethernetif = netif->state;
-  struct pbuf *p, *q;
+	(void)ethernetif;
+  struct pbuf *p;
   u16_t len, framelen;
 
   uint16_t rxRd= getSn_RX_RD(0);
@@ -189,7 +191,7 @@ low_level_input(struct netif *netif)
   if(len < 4) {
     goto end;
   }
-  printf("len:%0x\r\n");
+  printf("len:%0x\r\n", len);
   wiz_recv_data(0, (uint8_t *)&framelen, 2);
   printf("framelen before:%0x\r\n", framelen);
   setSn_CR(0, Sn_CR_RECV);
@@ -297,7 +299,7 @@ void ethernetif_input(void *pvParameters)
 {
   struct netif *netif;
 	struct pbuf *p = NULL;
-  uint8_t linkstate;
+  //uint8_t linkstate;
 	netif = (struct netif*) pvParameters;
   LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
   

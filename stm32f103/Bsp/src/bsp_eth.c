@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include "main.h"
 
-static SPI_TypeDef *SPIx = NULL;
+//static SPI_TypeDef *SPIx = NULL;
 
 static void W5500_config(void)
 {
@@ -87,7 +87,7 @@ static void W5500_reset(void)
     Delay(10);
 }
 
-uint8_t W5500_lwip_init(void)
+int8_t W5500_lwip_init(void)
 {
     uint8_t reg = 0x00;
 

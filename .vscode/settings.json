@@ -1,0 +1,24 @@
+{
+    "files.associations": {
+        "opt.h": "c",
+        "mem.h": "c",
+        "main.h": "c",
+        "bsp_usart.h": "c",
+        "ethernetif.h": "c",
+        "api_msg.h": "c",
+        "typeinfo": "c",
+        "sys_arch.h": "c",
+        "bsp_serial.h": "c",
+        "bsp_eth.h": "c",
+        "bsp_system.h": "c",
+        "led.h": "c",
+        "stm32f10x.h": "c",
+        "arch.h": "c",
+        "cc.h": "c",
+        "tcpip.h": "c",
+        "debug.h": "c",
+        "lwipopts.h": "c",
+        "netif.h": "c",
+        "stdint.h": "c"
+    }
+}

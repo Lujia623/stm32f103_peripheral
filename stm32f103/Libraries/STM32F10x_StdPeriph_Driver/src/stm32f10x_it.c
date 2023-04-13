@@ -131,10 +131,12 @@ void DebugMon_Handler(void)
 // {
 // }
 
+#if NO_SYS
 u32_t sys_now(void)
 {
   return tick_get();
 }
+#endif /* NO_SYS */
 
 /**
   * @brief  This function handles SysTick Handler.

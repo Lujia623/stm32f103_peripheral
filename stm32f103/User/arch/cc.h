@@ -32,10 +32,12 @@
 #ifndef LWIP_ARCH_CC_H
 #define LWIP_ARCH_CC_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <math.h>
+#include "main.h"
 
-#define LWIP_NO_STDINT_H  1
+#include "arch/sys_arch.h"
 
 /* see https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
 #if defined __ANDROID__
@@ -77,6 +79,16 @@
 #define PACK_STRUCT_END
 #endif
 
+// typedef uint8_t  u8_t;
+// typedef int8_t   s8_t;
+// typedef uint16_t u16_t;
+// typedef int16_t  s16_t;
+// typedef uint32_t u32_t;
+// typedef int32_t  s32_t;
+
+#if NO_SYS
+#define LWIP_NO_STDINT_H  1
+
 typedef unsigned char		u8_t;
 typedef signed char			s8_t;
 typedef unsigned short		u16_t;
@@ -85,6 +97,8 @@ typedef unsigned long		u32_t;
 typedef signed long			s32_t;
 typedef u32_t				mem_ptr_t;
 typedef unsigned int 		sys_prot_t;
+extern u32_t sys_now(void);
+#endif /* NO_SYS */
 
 #define X8_F  				"02x"
 #define U16_F 				"hu"
@@ -99,7 +113,5 @@ typedef unsigned int 		sys_prot_t;
 #ifndef BYTE_ORDER
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif /* BYTE_ORDER */
-
-extern u32_t sys_now(void);
 
 #endif /* LWIP_ARCH_CC_H */

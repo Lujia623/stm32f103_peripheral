@@ -147,7 +147,7 @@ sys_sem_new(sys_sem_t *sem, u8_t count)
     *sem = xSemaphoreCreateBinary();
     if(count == 1)
     {
-      sys_sem_signal(*sem);
+      sys_sem_signal(sem);
     }
   }
   else

@@ -10,7 +10,9 @@
 
 err_t ethernetif_init(struct netif *netif);
 
+#if NO_SYS
 void ethernetif_input(struct netif *netif);
+#endif /* NO_SYS */
 void ethernetif_output( void *argument );
 
 #endif

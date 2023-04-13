@@ -145,12 +145,13 @@ static void task2(void * pvParameters)
 }
 #endif
 
- struct netif gnetif;
+ 
+
+#if NO_SYS
+struct netif gnetif;
  ip4_addr_t ipaddr;
  ip4_addr_t netmask;
  ip4_addr_t gw;
-
-#if NO_SYS
  void LwIP_Init(void)
  {
   /* IP addresses initialization */
@@ -199,8 +200,8 @@ void LwIP_Init(void)
 
 int main(void)
 {
-    uint8_t send_data[256];
-    uint32_t i;
+//    uint8_t send_data[256];
+//    uint32_t i;
     SystickInit();
     led_init();
     SerialPortInit(BAUD_RATE_115200);
@@ -211,7 +212,7 @@ int main(void)
 
     while (1)
     {
-        ethernetif_input(&gnetif);
+        //ethernetif_input(&gnetif);
         //sys_check_timeouts();
     }
 

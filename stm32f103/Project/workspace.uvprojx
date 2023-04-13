@@ -314,7 +314,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>0</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -323,7 +323,7 @@
             <PlainCh>0</PlainCh>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <wLevel>1</wLevel>
+            <wLevel>2</wLevel>
             <uThumb>0</uThumb>
             <uSurpInc>0</uSurpInc>
             <uC99>1</uC99>
@@ -337,10 +337,10 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls></MiscControls>
+              <MiscControls>--c99</MiscControls>
               <Define>STM32F10X_HD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Libraries\STM32F10x_StdPeriph_Driver\inc;..\Libraries\CMSIS\DeviceSupport\ST\STM32F10x;..\Libraries\CMSIS\CoreSupport;..\Bsp\inc;..\User;..\Lib\utils;..\FreeRTOS\include;..\FreeRTOS\ports\ARM_CM3;..\Bsp\w5500;..\lwip_2.1.2\include;..\lwip_2.1.2\include\compat;..\lwip_2.1.2\include\lwip;..\lwip_2.1.2\include\netif;..\lwip_2.1.2\include\lwip\apps;..\lwip_2.1.2\include\lwip\priv;..\lwip_2.1.2\include\lwip\prot;..\lwip_2.1.2\include\arch</IncludePath>
+              <IncludePath>..\Libraries\STM32F10x_StdPeriph_Driver\inc;..\Libraries\CMSIS\DeviceSupport\ST\STM32F10x;..\Libraries\CMSIS\CoreSupport;..\Bsp\inc;..\User;..\Lib\utils;..\FreeRTOS\include;..\FreeRTOS\ports\ARM_CM3;..\Bsp\w5500;..\lwip_2.1.2\include;..\lwip_2.1.2\include\compat;..\lwip_2.1.2\include\lwip;..\lwip_2.1.2\include\netif;..\lwip_2.1.2\include\lwip\apps;..\lwip_2.1.2\include\lwip\priv;..\lwip_2.1.2\include\lwip\prot;..\lwip_2.1.2\include\arch;..\User\arch</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -828,6 +828,13 @@
         </Group>
         <Group>
           <GroupName>LwIP/arch</GroupName>
+          <Files>
+            <File>
+              <FileName>sys_arch.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\arch\sys_arch.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>FreeRTOS/src</GroupName>

@@ -897,6 +897,9 @@
  */
 #define Sn_MR_MC Sn_MR_ND
 
+#ifndef LWIP
+#define LWIP 0
+#if LWIP
 /* Sn_MR alternate values */
 /**
  * @brief For Berkeley Socket API
@@ -907,6 +910,8 @@
  * @brief For Berkeley Socket API
  */
 #define SOCK_DGRAM Sn_MR_UDP
+#endif
+#endif
 
 /* Sn_CR values */
 /**
