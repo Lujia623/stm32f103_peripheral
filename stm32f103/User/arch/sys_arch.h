@@ -30,11 +30,11 @@
  *
  */
  
-#include <lwip/opt.h>
-#include <lwip/arch.h>
-#include "tcpip.h"
+// #include <lwip/opt.h>
+// #include <lwip/arch.h>
+// #include "tcpip.h"
 
- /* FreeRTOS头文件 */
+ /* FreeRTOS头锟侥硷拷 */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"

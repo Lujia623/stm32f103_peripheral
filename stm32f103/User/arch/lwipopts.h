@@ -33,7 +33,7 @@
  /* MEMP_NUM_PBUF: the number of memp struct pbufs. If the application
      sends a lot of data out of ROM (or other static memory), this
      should be set high. */
- #define MEMP_NUM_PBUF           25    // MEMP_NUM_PBUF: memp结构pbuf的数量。如果应用程序从ROM(或其他静态内存)发送大量数据，这应该设得高一些。
+ #define MEMP_NUM_PBUF           16    // MEMP_NUM_PBUF: memp结构pbuf的数量。如果应用程序从ROM(或其他静态内存)发送大量数据，这应该设得高一些。
  /* MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks. One
      per active UDP "connection". */
  #define MEMP_NUM_UDP_PCB        4    //MEMP_NUM_UDP_PCB: UDP协议控制块的数量。一个每个活跃的UDP“连接”。
@@ -45,14 +45,14 @@
  #define MEMP_NUM_TCP_PCB_LISTEN 6   //正在监听的TCP数量连接。
  /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP
      segments. */
- #define MEMP_NUM_TCP_SEG        150   //同时排队的TCP段数。
+ #define MEMP_NUM_TCP_SEG        32   //同时排队的TCP段数。
  /* MEMP_NUM_SYS_TIMEOUT: the number of simulateously active
      timeouts. */
  #define MEMP_NUM_SYS_TIMEOUT    10   //同时活动的超时次数。
  
  /* ---------- Pbuf options ---------- */
  /* PBUF_POOL_SIZE: the number of buffers in the pbuf pool. */
- #define PBUF_POOL_SIZE          45      //PBUF_POOL内存池中内存块数量。            
+ #define PBUF_POOL_SIZE          4      //PBUF_POOL内存池中内存块数量。            
  
  /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. */
  #define PBUF_POOL_BUFSIZE       LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)     //PBUF_POOL内存池中每个内存块大小。            
