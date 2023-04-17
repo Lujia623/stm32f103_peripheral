@@ -55,8 +55,8 @@ static void W5500_config(void)
 
     NVIC_InitTypeDef NVIC_InitStruct;
     NVIC_InitStruct.NVIC_IRQChannel = EXTI1_IRQn;
-    NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 3;
-    NVIC_InitStruct.NVIC_IRQChannelSubPriority = 3;
+    NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 6;
+    NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
     NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStruct);
 

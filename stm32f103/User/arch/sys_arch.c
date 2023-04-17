@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2017 Simon Goldschmidt
- * All rights reserved. 
- * 
- * Redistribution and use in source and binary forms, with or without modification, 
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
@@ -11,427 +11,623 @@
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission. 
+ *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED 
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
- * SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
- * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+ * SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
  * This file is part of the lwIP TCP/IP stack.
- * 
- * Author: Simon Goldschmidt
+ *
+ * Author: Simon Goldschmidt <goldsimon@gmx.de>
  *
  */
-#include "debug.h"
 
-#include <lwip/opt.h>
-#include <lwip/arch.h>
+/* lwIP includes. */
+#include "lwip/debug.h"
+#include "lwip/def.h"
+#include "lwip/sys.h"
+#include "lwip/mem.h"
+#include "lwip/stats.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "task.h"
 
-#include "tcpip.h"
-#include "lwip/init.h"
-#include "lwip/netif.h"
-#include "lwip/sio.h"
-#include "ethernetif.h"
+#undef LWIP_ASSERT
+#include "main.h"
+#define LWIP_ASSERT(message, assertion)   \
+                do { if (!(assertion)) { \
+                    printf("Assertion \"%s\" failed at line %d in %s\n", \
+                    message, __LINE__, __FILE__); fflush(NULL); abort();}} while(0)
 
-#if !NO_SYS
-#include "sys_arch.h"
+
+/** Set this to 1 if you want the stack size passed to sys_thread_new() to be
+ * interpreted as number of stack words (FreeRTOS-like).
+ * Default is that they are interpreted as byte count (lwIP-like).
+ */
+#ifndef LWIP_FREERTOS_THREAD_STACKSIZE_IS_STACKWORDS
+#define LWIP_FREERTOS_THREAD_STACKSIZE_IS_STACKWORDS  0
 #endif
-#include <lwip/stats.h>
-#include <lwip/debug.h>
-#include <lwip/sys.h>
-#include "lwip/dhcp.h"
-#include <string.h>
 
-int errno;
+/** Set this to 1 to use a mutex for SYS_ARCH_PROTECT() critical regions.
+ * Default is 0 and locks interrupts/scheduler for SYS_ARCH_PROTECT().
+ */
+#ifndef LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX
+#define LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX     0
+#endif
 
+/** Set this to 1 to include a sanity check that SYS_ARCH_PROTECT() and
+ * SYS_ARCH_UNPROTECT() are called matching.
+ */
+#ifndef LWIP_FREERTOS_SYS_ARCH_PROTECT_SANITY_CHECK
+#define LWIP_FREERTOS_SYS_ARCH_PROTECT_SANITY_CHECK   0
+#endif
 
-u32_t lwip_sys_now;
+/** Set this to 1 to let sys_mbox_free check that queues are empty when freed */
+#ifndef LWIP_FREERTOS_CHECK_QUEUE_EMPTY_ON_FREE
+#define LWIP_FREERTOS_CHECK_QUEUE_EMPTY_ON_FREE       0
+#endif
 
-struct sys_timeouts {
-  struct sys_timeo *next;
-};
+/** Set this to 1 to enable core locking check functions in this port.
+ * For this to work, you'll have to define LWIP_ASSERT_CORE_LOCKED()
+ * and LWIP_MARK_TCPIP_THREAD() correctly in your lwipopts.h! */
+#ifndef LWIP_FREERTOS_CHECK_CORE_LOCKING
+#define LWIP_FREERTOS_CHECK_CORE_LOCKING              0
+#endif
 
-struct timeoutlist
+/** Set this to 0 to implement sys_now() yourself, e.g. using a hw timer.
+ * Default is 1, where FreeRTOS ticks are used to calculate back to ms.
+ */
+#ifndef LWIP_FREERTOS_SYS_NOW_FROM_FREERTOS
+#define LWIP_FREERTOS_SYS_NOW_FROM_FREERTOS           1
+#endif
+
+#if !configSUPPORT_DYNAMIC_ALLOCATION
+# error "lwIP FreeRTOS port requires configSUPPORT_DYNAMIC_ALLOCATION"
+#endif
+#if !INCLUDE_vTaskDelay
+# error "lwIP FreeRTOS port requires INCLUDE_vTaskDelay"
+#endif
+#if !INCLUDE_vTaskSuspend
+# error "lwIP FreeRTOS port requires INCLUDE_vTaskSuspend"
+#endif
+#if LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX || !LWIP_COMPAT_MUTEX
+#if !configUSE_MUTEXES
+# error "lwIP FreeRTOS port requires configUSE_MUTEXES"
+#endif
+#endif
+
+#if SYS_LIGHTWEIGHT_PROT && LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX
+static SemaphoreHandle_t sys_arch_protect_mutex;
+#endif
+#if SYS_LIGHTWEIGHT_PROT && LWIP_FREERTOS_SYS_ARCH_PROTECT_SANITY_CHECK
+static sys_prot_t sys_arch_protect_nesting;
+#endif
+
+/* Initialize this module (see description in sys.h) */
+void
+sys_init(void)
 {
-	struct sys_timeouts timeouts;
-	xTaskHandle pid;
-};
+#if SYS_LIGHTWEIGHT_PROT && LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX
+  /* initialize sys_arch_protect global mutex */
+  sys_arch_protect_mutex = xSemaphoreCreateRecursiveMutex();
+  LWIP_ASSERT("failed to create sys_arch_protect mutex",
+    sys_arch_protect_mutex != NULL);
+#endif /* SYS_LIGHTWEIGHT_PROT && LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX */
+}
 
-#define SYS_THREAD_MAX 4
+#if configUSE_16_BIT_TICKS == 1
+#error This port requires 32 bit ticks or timer overflow will fail
+#endif
 
-static struct timeoutlist s_timeoutlist[SYS_THREAD_MAX];
-
-static u16_t s_nextthread = 0;
+#if LWIP_FREERTOS_SYS_NOW_FROM_FREERTOS
+u32_t
+sys_now(void)
+{
+  return xTaskGetTickCount() * portTICK_PERIOD_MS;
+}
+#endif
 
 u32_t
 sys_jiffies(void)
 {
-  lwip_sys_now = xTaskGetTickCount();
-  return lwip_sys_now;
+  return xTaskGetTickCount();
 }
 
-u32_t
-sys_now(void)
+#if SYS_LIGHTWEIGHT_PROT
+
+sys_prot_t
+sys_arch_protect(void)
 {
-  lwip_sys_now = xTaskGetTickCount();
-  return lwip_sys_now;
-}
+#if LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX
+  BaseType_t ret;
+  LWIP_ASSERT("sys_arch_protect_mutex != NULL", sys_arch_protect_mutex != NULL);
 
-void
-sys_init(void)
-{
-	int i;
-	// Initialize the the per-thread sys_timeouts structures
-	// make sure there are no valid pids in the list
-	for(i = 0; i < SYS_THREAD_MAX; i++)
-	{
-		s_timeoutlist[i].pid = 0;
-		s_timeoutlist[i].timeouts.next = NULL;
-	}
-	// keep track of how many threads have been created
-	s_nextthread = 0;
-}
-
-struct sys_timeouts *sys_arch_timeouts(void)
-{
-	int i;
-	xTaskHandle pid;
-	struct timeoutlist *tl;
-	pid = xTaskGetCurrentTaskHandle( );
-	for(i = 0; i < s_nextthread; i++)
-	{
-		tl = &(s_timeoutlist[i]);
-		if(tl->pid == pid)
-		{
-			return &(tl->timeouts);
-		}
-	}
-	return NULL;
-}
-
-sys_prot_t sys_arch_protect(void)
-{
-	vPortEnterCritical();
-	return 1;
-}
-
-void sys_arch_unprotect(sys_prot_t pval)
-{
-	( void ) pval;
-	vPortExitCritical();
-}
-
-#if !NO_SYS
-
-//test_sys_arch_waiting_fn the_waiting_fn;
-
-//void
-//test_sys_arch_wait_callback(test_sys_arch_waiting_fn waiting_fn)
-//{
-//  the_waiting_fn = waiting_fn;
-//}
-
-err_t
-sys_sem_new(sys_sem_t *sem, u8_t count)
-{
-  /* 创建 sem */
-  if(count <= 1)
-  {    
-    *sem = xSemaphoreCreateBinary();
-    if(count == 1)
-    {
-      sys_sem_signal(sem);
-    }
-  }
-  else
-    *sem = xSemaphoreCreateCounting(count,count);
-  
-#if SYS_STATS
-	++lwip_stats.sys.sem.used;
- 	if (lwip_stats.sys.sem.max < lwip_stats.sys.sem.used) {
-		lwip_stats.sys.sem.max = lwip_stats.sys.sem.used;
-	}
-#endif /* SYS_STATS */
-  
-  if(*sem != SYS_SEM_NULL)
-    return ERR_OK;
-  else
+  ret = xSemaphoreTakeRecursive(sys_arch_protect_mutex, portMAX_DELAY);
+  LWIP_ASSERT("sys_arch_protect failed to take the mutex", ret == pdTRUE);
+#else /* LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX */
+  taskENTER_CRITICAL();
+#endif /* LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX */
+#if LWIP_FREERTOS_SYS_ARCH_PROTECT_SANITY_CHECK
   {
-#if SYS_STATS
-    ++lwip_stats.sys.sem.err;
-#endif /* SYS_STATS */
-    printf("[sys_arch]:new sem fail!\n");
-    return ERR_MEM;
+    /* every nested call to sys_arch_protect() returns an increased number */
+    sys_prot_t ret = sys_arch_protect_nesting;
+    sys_arch_protect_nesting++;
+    LWIP_ASSERT("sys_arch_protect overflow", sys_arch_protect_nesting > ret);
+    return ret;
   }
+#else
+  return 1;
+#endif
 }
 
 void
-sys_sem_free(sys_sem_t *sem)
+sys_arch_unprotect(sys_prot_t pval)
 {
-#if SYS_STATS
-   --lwip_stats.sys.sem.used;
-#endif /* SYS_STATS */
-  /* 删除 sem */
-  vSemaphoreDelete(*sem);
-  *sem = SYS_SEM_NULL;
+#if LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX
+  BaseType_t ret;
+#endif
+#if LWIP_FREERTOS_SYS_ARCH_PROTECT_SANITY_CHECK
+  LWIP_ASSERT("unexpected sys_arch_protect_nesting", sys_arch_protect_nesting > 0);
+  sys_arch_protect_nesting--;
+  LWIP_ASSERT("unexpected sys_arch_protect_nesting", sys_arch_protect_nesting == pval);
+#endif
+
+#if LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX
+  LWIP_ASSERT("sys_arch_protect_mutex != NULL", sys_arch_protect_mutex != NULL);
+
+  ret = xSemaphoreGiveRecursive(sys_arch_protect_mutex);
+  LWIP_ASSERT("sys_arch_unprotect failed to give the mutex", ret == pdTRUE);
+#else /* LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX */
+  taskEXIT_CRITICAL();
+#endif /* LWIP_FREERTOS_SYS_ARCH_PROTECT_USES_MUTEX */
+  LWIP_UNUSED_ARG(pval);
 }
 
-
-int sys_sem_valid(sys_sem_t *sem)                                               
-{
-  return (*sem != SYS_SEM_NULL);                                    
-}
-
+#endif /* SYS_LIGHTWEIGHT_PROT */
 
 void
-sys_sem_set_invalid(sys_sem_t *sem)
+sys_arch_msleep(u32_t delay_ms)
 {
-  *sem = SYS_SEM_NULL;
+  TickType_t delay_ticks = delay_ms / portTICK_RATE_MS;
+  vTaskDelay(delay_ticks);
 }
 
-/* 
- 如果timeout参数不为零，则返回值为
- 等待信号量所花费的毫秒数。如果
- 信号量未在指定时间内发出信号，返回值为
- SYS_ARCH_TIMEOUT。如果线程不必等待信号量
- 该函数返回零。 */
-u32_t
-sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
-{
-  u32_t wait_tick = 0;
-  u32_t start_tick = 0 ;
-  
-  //看看信号量是否有效
-  if(*sem == SYS_SEM_NULL)
-    return SYS_ARCH_TIMEOUT;
-  
-  //首先获取开始等待信号量的时钟节拍
-  start_tick = xTaskGetTickCount();
-  
-  //timeout != 0，需要将ms换成系统的时钟节拍
-  if(timeout != 0)
-  {
-    //将ms转换成时钟节拍
-    wait_tick = timeout / portTICK_PERIOD_MS;
-    if (wait_tick == 0)
-      wait_tick = 1;
-  }
-  else
-    wait_tick = portMAX_DELAY;  //一直阻塞
-  
-  //等待成功，计算等待的时间，否则就表示等待超时
-  if(xSemaphoreTake(*sem, wait_tick) == pdTRUE)
-    return ((xTaskGetTickCount()-start_tick)*portTICK_RATE_MS);
-  else
-    return SYS_ARCH_TIMEOUT;
-}
+#if !LWIP_COMPAT_MUTEX
 
-void
-sys_sem_signal(sys_sem_t *sem)
-{
-  if(xSemaphoreGive( *sem ) != pdTRUE)
-    printf("[sys_arch]:sem signal fail!\n");
-}
-
+/* Create a new mutex*/
 err_t
 sys_mutex_new(sys_mutex_t *mutex)
 {
-  /* 创建 sem */   
-  *mutex = xSemaphoreCreateMutex();
-  if(*mutex != SYS_MRTEX_NULL)
-    return ERR_OK;
-  else
-  {
-    printf("[sys_arch]:new mutex fail!\n");
+  LWIP_ASSERT("mutex != NULL", mutex != NULL);
+
+  mutex->mut = xSemaphoreCreateRecursiveMutex();
+  if(mutex->mut == NULL) {
+    SYS_STATS_INC(mutex.err);
     return ERR_MEM;
   }
-}
-
-void
-sys_mutex_free(sys_mutex_t *mutex)
-{
-  vSemaphoreDelete(*mutex);
-}
-
-void
-sys_mutex_set_invalid(sys_mutex_t *mutex)
-{
-  *mutex = SYS_MRTEX_NULL;
+  SYS_STATS_INC_USED(mutex);
+  return ERR_OK;
 }
 
 void
 sys_mutex_lock(sys_mutex_t *mutex)
 {
-  xSemaphoreTake(*mutex,/* 互斥量句柄 */
-                 portMAX_DELAY); /* 等待时间 */
+  BaseType_t ret;
+  LWIP_ASSERT("mutex != NULL", mutex != NULL);
+  LWIP_ASSERT("mutex->mut != NULL", mutex->mut != NULL);
+
+  ret = xSemaphoreTakeRecursive(mutex->mut, portMAX_DELAY);
+  LWIP_ASSERT("failed to take the mutex", ret == pdTRUE);
 }
 
 void
 sys_mutex_unlock(sys_mutex_t *mutex)
 {
-  xSemaphoreGive( *mutex );//给出互斥量
+  BaseType_t ret;
+  LWIP_ASSERT("mutex != NULL", mutex != NULL);
+  LWIP_ASSERT("mutex->mut != NULL", mutex->mut != NULL);
+
+  ret = xSemaphoreGiveRecursive(mutex->mut);
+  LWIP_ASSERT("failed to give the mutex", ret == pdTRUE);
 }
 
-
-sys_thread_t
-sys_thread_new(const char *name, lwip_thread_fn function, void *arg, int stacksize, int prio)
+void
+sys_mutex_free(sys_mutex_t *mutex)
 {
-  sys_thread_t handle = NULL;
-  BaseType_t xReturn = pdPASS;
-  /* 创建MidPriority_Task任务 */
-  xReturn = xTaskCreate((TaskFunction_t )function,  /* 任务入口函数 */
-                        (const char*    )name,/* 任务名字 */
-                        (uint16_t       )stacksize,  /* 任务栈大小 */
-                        (void*          )arg,/* 任务入口函数参数 */
-                        (UBaseType_t    )prio, /* 任务的优先级 */
-                        (TaskHandle_t*  )&handle);/* 任务控制块指针 */ 
-  if(xReturn != pdPASS)
-  {
-    printf("[sys_arch]:create task fail!err:%#lx\n",xReturn);
-    return NULL;
+  LWIP_ASSERT("mutex != NULL", mutex != NULL);
+  LWIP_ASSERT("mutex->mut != NULL", mutex->mut != NULL);
+
+  SYS_STATS_DEC(mutex.used);
+  vSemaphoreDelete(mutex->mut);
+  mutex->mut = NULL;
+}
+
+#endif /* !LWIP_COMPAT_MUTEX */
+
+err_t
+sys_sem_new(sys_sem_t *sem, u8_t initial_count)
+{
+  LWIP_ASSERT("sem != NULL", sem != NULL);
+  LWIP_ASSERT("initial_count invalid (not 0 or 1)",
+    (initial_count == 0) || (initial_count == 1));
+
+  sem->sem = xSemaphoreCreateBinary();
+  if(sem->sem == NULL) {
+    SYS_STATS_INC(sem.err);
+    return ERR_MEM;
   }
-  return handle;
+  SYS_STATS_INC_USED(sem);
+
+  if(initial_count == 1) {
+    BaseType_t ret = xSemaphoreGive(sem->sem);
+    LWIP_ASSERT("sys_sem_new: initial give failed", ret == pdTRUE);
+  }
+  return ERR_OK;
+}
+
+void
+sys_sem_signal(sys_sem_t *sem)
+{
+  BaseType_t ret;
+  LWIP_ASSERT("sem != NULL", sem != NULL);
+  LWIP_ASSERT("sem->sem != NULL", sem->sem != NULL);
+
+  ret = xSemaphoreGive(sem->sem);
+  /* queue full is OK, this is a signal only... */
+  LWIP_ASSERT("sys_sem_signal: sane return value",
+    (ret == pdTRUE) || (ret == errQUEUE_FULL));
+}
+
+u32_t
+sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout_ms)
+{
+  BaseType_t ret;
+  LWIP_ASSERT("sem != NULL", sem != NULL);
+  LWIP_ASSERT("sem->sem != NULL", sem->sem != NULL);
+
+  if(!timeout_ms) {
+    /* wait infinite */
+    ret = xSemaphoreTake(sem->sem, portMAX_DELAY);
+    LWIP_ASSERT("taking semaphore failed", ret == pdTRUE);
+  } else {
+    TickType_t timeout_ticks = timeout_ms / portTICK_RATE_MS;
+    ret = xSemaphoreTake(sem->sem, timeout_ticks);
+    if (ret == errQUEUE_EMPTY) {
+      /* timed out */
+      return SYS_ARCH_TIMEOUT;
+    }
+    LWIP_ASSERT("taking semaphore failed", ret == pdTRUE);
+  }
+
+  /* Old versions of lwIP required us to return the time waited.
+     This is not the case any more. Just returning != SYS_ARCH_TIMEOUT
+     here is enough. */
+  return 1;
+}
+
+void
+sys_sem_free(sys_sem_t *sem)
+{
+  LWIP_ASSERT("sem != NULL", sem != NULL);
+  LWIP_ASSERT("sem->sem != NULL", sem->sem != NULL);
+
+  SYS_STATS_DEC(sem.used);
+  vSemaphoreDelete(sem->sem);
+  sem->sem = NULL;
 }
 
 err_t
 sys_mbox_new(sys_mbox_t *mbox, int size)
 {
-    /* 创建Test_Queue */
-  *mbox = xQueueCreate((UBaseType_t ) size,/* 消息队列的长度 */
-                       (UBaseType_t ) sizeof(void *));/* 消息的大小 */
-#if SYS_STATS
-      ++lwip_stats.sys.mbox.used;
-      if (lwip_stats.sys.mbox.max < lwip_stats.sys.mbox.used) {
-         lwip_stats.sys.mbox.max = lwip_stats.sys.mbox.used;
-	  }
-#endif /* SYS_STATS */
-	if(NULL == *mbox)
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("size > 0", size > 0);
+
+  mbox->mbx = xQueueCreate((UBaseType_t)size, sizeof(void *));
+  if(mbox->mbx == NULL) {
+    SYS_STATS_INC(mbox.err);
     return ERR_MEM;
-  
+  }
+  SYS_STATS_INC_USED(mbox);
   return ERR_OK;
+}
+
+void
+sys_mbox_post(sys_mbox_t *mbox, void *msg)
+{
+  BaseType_t ret;
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("mbox->mbx != NULL", mbox->mbx != NULL);
+
+  ret = xQueueSendToBack(mbox->mbx, &msg, portMAX_DELAY);
+  LWIP_ASSERT("mbox post failed", ret == pdTRUE);
+}
+
+err_t
+sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
+{
+  BaseType_t ret;
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("mbox->mbx != NULL", mbox->mbx != NULL);
+
+  ret = xQueueSendToBack(mbox->mbx, &msg, 0);
+  if (ret == pdTRUE) {
+    return ERR_OK;
+  } else {
+    LWIP_ASSERT("mbox trypost failed", ret == errQUEUE_FULL);
+    SYS_STATS_INC(mbox.err);
+    return ERR_MEM;
+  }
+}
+
+err_t
+sys_mbox_trypost_fromisr(sys_mbox_t *mbox, void *msg)
+{
+  BaseType_t ret;
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("mbox->mbx != NULL", mbox->mbx != NULL);
+
+  ret = xQueueSendToBackFromISR(mbox->mbx, &msg, &xHigherPriorityTaskWoken);
+  if (ret == pdTRUE) {
+    if (xHigherPriorityTaskWoken == pdTRUE) {
+      return ERR_NEED_SCHED;
+    }
+    return ERR_OK;
+  } else {
+    LWIP_ASSERT("mbox trypost failed", ret == errQUEUE_FULL);
+    SYS_STATS_INC(mbox.err);
+    return ERR_MEM;
+  }
+}
+
+u32_t
+sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout_ms)
+{
+  BaseType_t ret;
+  void *msg_dummy;
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("mbox->mbx != NULL", mbox->mbx != NULL);
+
+  if (!msg) {
+    msg = &msg_dummy;
+  }
+
+  if (!timeout_ms) {
+    /* wait infinite */
+    ret = xQueueReceive(mbox->mbx, &(*msg), portMAX_DELAY);
+    LWIP_ASSERT("mbox fetch failed", ret == pdTRUE);
+  } else {
+    TickType_t timeout_ticks = timeout_ms / portTICK_RATE_MS;
+    ret = xQueueReceive(mbox->mbx, &(*msg), timeout_ticks);
+    if (ret == errQUEUE_EMPTY) {
+      /* timed out */
+      *msg = NULL;
+      return SYS_ARCH_TIMEOUT;
+    }
+    LWIP_ASSERT("mbox fetch failed", ret == pdTRUE);
+  }
+
+  /* Old versions of lwIP required us to return the time waited.
+     This is not the case any more. Just returning != SYS_ARCH_TIMEOUT
+     here is enough. */
+  return 1;
+}
+
+u32_t
+sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
+{
+  BaseType_t ret;
+  void *msg_dummy;
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("mbox->mbx != NULL", mbox->mbx != NULL);
+
+  if (!msg) {
+    msg = &msg_dummy;
+  }
+
+  ret = xQueueReceive(mbox->mbx, &(*msg), 0);
+  if (ret == errQUEUE_EMPTY) {
+    *msg = NULL;
+    return SYS_MBOX_EMPTY;
+  }
+  LWIP_ASSERT("mbox fetch failed", ret == pdTRUE);
+
+  /* Old versions of lwIP required us to return the time waited.
+     This is not the case any more. Just returning != SYS_ARCH_TIMEOUT
+     here is enough. */
+  return 1;
 }
 
 void
 sys_mbox_free(sys_mbox_t *mbox)
 {
-  if( uxQueueMessagesWaiting( *mbox ) )
-	{
-		/* Line for breakpoint.  Should never break here! */
-		portNOP();
-#if SYS_STATS
-	    lwip_stats.sys.mbox.err++;
-#endif /* SYS_STATS */
+  LWIP_ASSERT("mbox != NULL", mbox != NULL);
+  LWIP_ASSERT("mbox->mbx != NULL", mbox->mbx != NULL);
 
-		// TODO notify the user of failure.
-	}
-  
-  vQueueDelete(*mbox);
-  
-#if SYS_STATS
-     --lwip_stats.sys.mbox.used;
-#endif /* SYS_STATS */
-}
-
-int sys_mbox_valid(sys_mbox_t *mbox)          
-{      
-  if (*mbox == SYS_MBOX_NULL) 
-    return 0;
-  else
-    return 1;
-}   
-
-void
-sys_mbox_set_invalid(sys_mbox_t *mbox)
-{
-  *mbox = SYS_MBOX_NULL; 
-}
-
-void
-sys_mbox_post(sys_mbox_t *q, void *msg)
-{
-  while(xQueueSend( *q, /* 消息队列的句柄 */
-                    &msg,/* 发送的消息内容 */
-                    portMAX_DELAY) != pdTRUE); /* 等待时间 */
-}
-
-err_t
-sys_mbox_trypost(sys_mbox_t *q, void *msg)
-{
-  if(xQueueSend(*q,&msg,0) == pdPASS)  
-    return ERR_OK;
-  else
-    return ERR_MEM;
-}
-
-err_t
-sys_mbox_trypost_fromisr(sys_mbox_t *q, void *msg)
-{
-  return sys_mbox_trypost(q, msg);
-}
-
-u32_t
-sys_arch_mbox_fetch(sys_mbox_t *q, void **msg, u32_t timeout)
-{
-  void *dummyptr;
-  u32_t wait_tick = 0;
-  u32_t start_tick = 0 ;
-  
-  if ( msg == NULL )  //看看存储消息的地方是否有效
-		msg = &dummyptr;
-  
-  //首先获取开始等待信号量的时钟节拍
-  start_tick = sys_now();
-  
-  //timeout != 0，需要将ms换成系统的时钟节拍
-  if(timeout != 0)
+#if LWIP_FREERTOS_CHECK_QUEUE_EMPTY_ON_FREE
   {
-    //将ms转换成时钟节拍
-    wait_tick = timeout / portTICK_PERIOD_MS;
-    if (wait_tick == 0)
-      wait_tick = 1;
+    UBaseType_t msgs_waiting = uxQueueMessagesWaiting(mbox->mbx);
+    LWIP_ASSERT("mbox quence not empty", msgs_waiting == 0);
+
+    if (msgs_waiting != 0) {
+      SYS_STATS_INC(mbox.err);
+    }
   }
-  //一直阻塞
-  else
-    wait_tick = portMAX_DELAY;
-  
-  //等待成功，计算等待的时间，否则就表示等待超时
-  if(xQueueReceive(*q,&(*msg), wait_tick) == pdTRUE)
-    return ((sys_now() - start_tick)*portTICK_PERIOD_MS);
-  else
-  {
-    *msg = NULL;
-    return SYS_ARCH_TIMEOUT;
-  }
+#endif
+
+  vQueueDelete(mbox->mbx);
+
+  SYS_STATS_DEC(mbox.used);
 }
 
-u32_t
-sys_arch_mbox_tryfetch(sys_mbox_t *q, void **msg)
+sys_thread_t
+sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, int stacksize, int prio)
 {
-	void *dummyptr;
-	if ( msg == NULL )
-		msg = &dummyptr;
-  
-  //等待成功，计算等待的时间
-  if(xQueueReceive(*q,&(*msg), 0) == pdTRUE)
-    return ERR_OK;
-  else
-    return SYS_MBOX_EMPTY;
+  TaskHandle_t rtos_task;
+  BaseType_t ret;
+  sys_thread_t lwip_thread;
+  size_t rtos_stacksize;
+
+  LWIP_ASSERT("invalid stacksize", stacksize > 0);
+#if LWIP_FREERTOS_THREAD_STACKSIZE_IS_STACKWORDS
+  rtos_stacksize = (size_t)stacksize;
+#else
+  rtos_stacksize = (size_t)stacksize / sizeof(StackType_t);
+#endif
+
+  /* lwIP's lwip_thread_fn matches FreeRTOS' TaskFunction_t, so we can pass the
+     thread function without adaption here. */
+  ret = xTaskCreate(thread, name, (configSTACK_DEPTH_TYPE)rtos_stacksize, arg, prio, &rtos_task);
+  LWIP_ASSERT("task creation failed", ret == pdTRUE);
+
+  lwip_thread.thread_handle = rtos_task;
+  return lwip_thread;
 }
 
 #if LWIP_NETCONN_SEM_PER_THREAD
-#error LWIP_NETCONN_SEM_PER_THREAD==1 not supported
+#if configNUM_THREAD_LOCAL_STORAGE_POINTERS > 0
+
+sys_sem_t *
+sys_arch_netconn_sem_get(void)
+{
+  void* ret;
+  TaskHandle_t task = xTaskGetCurrentTaskHandle();
+  LWIP_ASSERT("task != NULL", task != NULL);
+
+  ret = pvTaskGetThreadLocalStoragePointer(task, 0);
+  return ret;
+}
+
+void
+sys_arch_netconn_sem_alloc(void)
+{
+  void *ret;
+  TaskHandle_t task = xTaskGetCurrentTaskHandle();
+  LWIP_ASSERT("task != NULL", task != NULL);
+
+  ret = pvTaskGetThreadLocalStoragePointer(task, 0);
+  if(ret == NULL) {
+    sys_sem_t *sem;
+    err_t err;
+    /* need to allocate the memory for this semaphore */
+    sem = mem_malloc(sizeof(sys_sem_t));
+    LWIP_ASSERT("sem != NULL", sem != NULL);
+    err = sys_sem_new(sem, 0);
+    LWIP_ASSERT("err == ERR_OK", err == ERR_OK);
+    LWIP_ASSERT("sem invalid", sys_sem_valid(sem));
+    vTaskSetThreadLocalStoragePointer(task, 0, sem);
+  }
+}
+
+void sys_arch_netconn_sem_free(void)
+{
+  void* ret;
+  TaskHandle_t task = xTaskGetCurrentTaskHandle();
+  LWIP_ASSERT("task != NULL", task != NULL);
+
+  ret = pvTaskGetThreadLocalStoragePointer(task, 0);
+  if(ret != NULL) {
+    sys_sem_t *sem = ret;
+    sys_sem_free(sem);
+    mem_free(sem);
+    vTaskSetThreadLocalStoragePointer(task, 0, NULL);
+  }
+}
+
+#else /* configNUM_THREAD_LOCAL_STORAGE_POINTERS > 0 */
+#error LWIP_NETCONN_SEM_PER_THREAD needs configNUM_THREAD_LOCAL_STORAGE_POINTERS
+#endif /* configNUM_THREAD_LOCAL_STORAGE_POINTERS > 0 */
+
 #endif /* LWIP_NETCONN_SEM_PER_THREAD */
 
+#if LWIP_FREERTOS_CHECK_CORE_LOCKING
+#if LWIP_TCPIP_CORE_LOCKING
+
+/** Flag the core lock held. A counter for recursive locks. */
+static u8_t lwip_core_lock_count;
+static TaskHandle_t lwip_core_lock_holder_thread;
+
+void
+sys_lock_tcpip_core(void)
+{
+   sys_mutex_lock(&lock_tcpip_core);
+   if (lwip_core_lock_count == 0) {
+     lwip_core_lock_holder_thread = xTaskGetCurrentTaskHandle();
+   }
+   lwip_core_lock_count++;
+}
+
+void
+sys_unlock_tcpip_core(void)
+{
+   lwip_core_lock_count--;
+   if (lwip_core_lock_count == 0) {
+       lwip_core_lock_holder_thread = 0;
+   }
+   sys_mutex_unlock(&lock_tcpip_core);
+}
+
+#endif /* LWIP_TCPIP_CORE_LOCKING */
+
+#if !NO_SYS
+static TaskHandle_t lwip_tcpip_thread;
+#endif
+
+void
+sys_mark_tcpip_thread(void)
+{
+#if !NO_SYS
+  lwip_tcpip_thread = xTaskGetCurrentTaskHandle();
+#endif
+}
+
+void
+sys_check_core_locking(void)
+{
+  /* Embedded systems should check we are NOT in an interrupt context here */
+  /* E.g. core Cortex-M3/M4 ports:
+         configASSERT( ( portNVIC_INT_CTRL_REG & portVECTACTIVE_MASK ) == 0 );
+
+     Instead, we use more generic FreeRTOS functions here, which should fail from ISR: */
+  taskENTER_CRITICAL();
+  taskEXIT_CRITICAL();
+
+#if !NO_SYS
+  if (lwip_tcpip_thread != 0) {
+    TaskHandle_t current_thread = xTaskGetCurrentTaskHandle();
+
+#if LWIP_TCPIP_CORE_LOCKING
+    LWIP_ASSERT("Function called without core lock",
+                current_thread == lwip_core_lock_holder_thread && lwip_core_lock_count > 0);
+#else /* LWIP_TCPIP_CORE_LOCKING */
+    LWIP_ASSERT("Function called from wrong thread", current_thread == lwip_tcpip_thread);
+#endif /* LWIP_TCPIP_CORE_LOCKING */
+  }
 #endif /* !NO_SYS */
+}
+
+#endif /* LWIP_FREERTOS_CHECK_CORE_LOCKING*/
 
 /* Variables Initialization */
+#include "lwip/netif.h"
+#include "tcpip.h"
+#include "lwip/init.h"
+#include <lwip/stats.h>
+#include <lwip/debug.h>
+#include <lwip/sys.h>
+#include "lwip/dhcp.h"
+#include <string.h>
+#include "lwip/sio.h"
+#include "ethernetif.h"
+#include "sys_arch.h"
 struct netif gnetif;
 ip4_addr_t ipaddr;
 ip4_addr_t netmask;
@@ -439,7 +635,7 @@ ip4_addr_t gw;
 uint8_t IP_ADDRESS[4];
 uint8_t NETMASK_ADDRESS[4];
 uint8_t GATEWAY_ADDRESS[4];
-
+int errno;
 void TCPIP_Init(void)
 {
   tcpip_init(NULL, NULL);

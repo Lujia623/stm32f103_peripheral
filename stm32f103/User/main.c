@@ -35,11 +35,21 @@ static void task1(void * pvParameters)
     for(;;) {
         PBout(5) = !PBout(5);
         printf("tesk1\r\n");
-        vTaskDelay(20);
+        printf("task num:%0x\r\n", uxTaskGetNumberOfTasks());
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
 
 static void task2(void * pvParameters)
+{
+    for(;;) {
+        PAout(5) = !PAout(5);
+        printf("tesk2\r\n");
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+}
+
+static void task3(void * pvParameters)
 {
     for(;;) {
         PAout(5) = !PAout(5);
@@ -54,14 +64,16 @@ static void Application(void * pvParameters)
 
     TCPIP_Init();
     taskENTER_CRITICAL();
-    xTaskCreate(task1, "task1", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle1);
+    printf("Application\r\n");
+    xReturn = xTaskCreate(task1, "task1", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
         printf("task1 creat success\r\n");
-    xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, LED_PRIORITY, &xHandle2);
+    xReturn = xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, LED_PRIORITY, &xHandle2);
     if(xReturn == pdPASS)
         printf("task1 creat success\r\n");
+    // sys_thread_new("test", task3, NULL, 512, 3);
     vTaskDelete(xHandleApp);
-    taskENTER_CRITICAL();
+    taskEXIT_CRITICAL();
 }
 
  

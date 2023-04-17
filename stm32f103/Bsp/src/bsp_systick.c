@@ -20,6 +20,7 @@ void Systick_Init(void)
 uint32_t SystickInit(void)
 {
 	// 1ms
+	NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
 	if (SysTick_Config(SystemCoreClock / 1000) > 0)
 	{
 		return RS_ERROR;

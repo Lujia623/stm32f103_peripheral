@@ -37,7 +37,7 @@
 #include <math.h>
 #include "main.h"
 
-#include "arch/sys_arch.h"
+// #include "arch/sys_arch.h"
 
 /* see https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
 #if defined __ANDROID__

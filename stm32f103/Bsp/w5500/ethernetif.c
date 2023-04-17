@@ -319,6 +319,7 @@ void ethernetif_input(void *pvParameters)
     if(xSemaphoreTake( s_xSemaphore, portMAX_DELAY ) == pdTRUE)
     {
       /* move received packet into a new pbuf */
+      printf("ethernetif_input\r\n");
       taskENTER_CRITICAL();
       w5500_IR_clr();
       p = low_level_input(netif);
