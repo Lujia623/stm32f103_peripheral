@@ -23,6 +23,7 @@
 //#include "lwip/ip.h"
 //#include "lwip/snmp.h"
 #include "lwip/timeouts.h"
+#include "elog.h"
 
 #define LED_PRIORITY    		2
 #define tskSTACK_SIZE       (128)
@@ -34,8 +35,8 @@ static void task1(void * pvParameters)
 {
     for(;;) {
         PBout(5) = !PBout(5);
-        printf("tesk1\r\n");
-        printf("task num:%0x\r\n", uxTaskGetNumberOfTasks());
+        log_d("tesk1\r\n");
+        log_d("task num:%0x\r\n", uxTaskGetNumberOfTasks());
         vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
@@ -44,7 +45,7 @@ static void task2(void * pvParameters)
 {
     for(;;) {
         PAout(5) = !PAout(5);
-        printf("tesk2\r\n");
+        log_d("tesk2\r\n");
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
@@ -53,7 +54,7 @@ static void task3(void * pvParameters)
 {
     for(;;) {
         PAout(5) = !PAout(5);
-        printf("tesk2\r\n");
+        log_d("tesk2\r\n");
         vTaskDelay(20);
     }
 }
@@ -64,13 +65,13 @@ static void Application(void * pvParameters)
 
     TCPIP_Init();
     taskENTER_CRITICAL();
-    printf("Application\r\n");
+    log_d("Application\r\n");
     xReturn = xTaskCreate(task1, "task1", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
-        printf("task1 creat success\r\n");
+        log_d("task1 creat success\r\n");
     xReturn = xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, LED_PRIORITY, &xHandle2);
     if(xReturn == pdPASS)
-        printf("task1 creat success\r\n");
+        log_d("task1 creat success\r\n");
     // sys_thread_new("test", task3, NULL, 512, 3);
     vTaskDelete(xHandleApp);
     taskEXIT_CRITICAL();
@@ -106,15 +107,15 @@ struct netif gnetif;
   {
     /* When the netif is fully configured this function must be called */
     netif_set_up(&gnetif);
-		printf("netif success \r\n");
+		log_d("netif success \r\n");
   }
   else
   {
     /* When the netif link is down this function must be called */
     netif_set_down(&gnetif);
-		printf("netif failed \r\n");
+		log_d("netif failed \r\n");
   }
-  printf("本地IP地址是:%ld.%ld.%ld.%ld\n\n",  \
+  log_d("本地IP地址是:%ld.%ld.%ld.%ld\n\n",  \
         ((gnetif.ip_addr.addr)&0x000000ff),       \
         (((gnetif.ip_addr.addr)&0x0000ff00)>>8),  \
         (((gnetif.ip_addr.addr)&0x00ff0000)>>16), \
@@ -124,6 +125,22 @@ struct netif gnetif;
 
 #define TCP_ECHO_PORT 5001
 
+static void easyLogger_init(void)
+{
+    elog_init();
+    /* set EasyLogger log format */
+    elog_set_fmt(ELOG_LVL_ASSERT, ELOG_FMT_ALL);
+    elog_set_fmt(ELOG_LVL_ERROR, ELOG_FMT_ALL);
+    elog_set_fmt(ELOG_LVL_WARN, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+    elog_set_fmt(ELOG_LVL_INFO, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+    elog_set_fmt(ELOG_LVL_DEBUG, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
+    elog_set_fmt(ELOG_LVL_VERBOSE, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
+#ifdef ELOG_COLOR_ENABLE
+    elog_set_text_color_enabled(true);
+#endif
+    /* start EasyLogger */
+    elog_start();
+}
 
 int main(void)
 {
@@ -134,14 +151,14 @@ int main(void)
     led_init();
     SerialPortInit(BAUD_RATE_115200);
     // spi_Init();
-    printf("SPI SLAVE\r\n");
-    printf("W5500\r\n");
+    log_d("SPI SLAVE\r\n");
+    log_d("W5500\r\n");
 
     xReturn = xTaskCreate(Application, "task1", 512, NULL, tskIDLE_PRIORITY, &xHandleApp);
     if(xReturn == pdPASS)
         vTaskStartScheduler();
     else
-        printf("Application creat fail\r\n");
+        log_d("Application creat fail\r\n");
     while(1);
 #if NO_SYS
     while (1)

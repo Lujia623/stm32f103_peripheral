@@ -30,6 +30,7 @@ int fputc( int ch, FILE *f);
 void Send_Byte(USART_TypeDef *USARTx, uint16_t byte);
 uint8_t Receive_Byte(USART_TypeDef *USARTx);
 void SerialPortInit(unsigned long ulWantedBaud);
+uint8_t USART_Transmit(USART_TypeDef *USARTx, uint8_t *pTxData, uint16_t Size, uint32_t Timeout);
 
 #ifdef __cplusplus
 }

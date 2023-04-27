@@ -1,5 +1,6 @@
 #include "bsp_serial.h"
 #include "stm32f10x.h"
+#include "bsp_systick.h"
 
 void SerialPortInit(unsigned long ulWantedBaud)
 {
@@ -40,6 +41,26 @@ void Send_Byte(USART_TypeDef *USARTx, uint16_t byte)
 {
     while (0 == (USARTx->SR & (1 << 7)));
     USARTx->DR = (byte & (uint16_t)0x1ff);
+}
+
+uint8_t USART_Transmit(USART_TypeDef *USARTx, uint8_t *pTxData, uint16_t Size, uint32_t Timeout)
+{
+    uint16_t* tmp;
+    uint32_t tickstart = 0U;
+
+    tickstart = HAL_GetTick();
+
+    while(Size > 0)
+    {
+        Size--;
+        while(USART_GetITStatus(USARTx, USART_IT_TXE) == RESET)
+        {
+            if((HAL_GetTick - tickstart) > Timeout)
+                return 1;
+        }
+        USART_SendData(USARTx, *pTxData++ & (uint8_t)0xFF);
+    }
+    return 0;
 }
 
 uint8_t Receive_Byte(USART_TypeDef *USARTx)

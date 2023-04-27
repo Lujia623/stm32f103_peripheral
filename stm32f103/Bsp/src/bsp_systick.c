@@ -79,6 +79,11 @@ void IncTick(void)
 	uwTick += uwTickFreq;
 }
 
+uint32_t HAL_GetTick(void)
+{
+	return uwTick;
+}
+
 void tick_set(uint32_t tick)
 {
     
