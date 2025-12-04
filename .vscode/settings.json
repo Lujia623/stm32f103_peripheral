@@ -19,6 +19,19 @@
         "debug.h": "c",
         "lwipopts.h": "c",
         "netif.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "bsp_systick.h": "c",
+        "stdio.h": "c",
+        "stm32f10x_usart.h": "c",
+        "w5500.h": "c",
+        "wizchip_conf.h": "c",
+        "stdlib.h": "c",
+        "semphr.h": "c",
+        "semaphore.h": "c",
+        "freertos.h": "c",
+        "elog.h": "c",
+        "adc.h": "c",
+        "portable.h": "c",
+        "freertosconfig.h": "c"
     }
 }

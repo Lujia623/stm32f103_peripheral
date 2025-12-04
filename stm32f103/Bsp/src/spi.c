@@ -7,28 +7,28 @@ void spi_Init(void)
     SPI_InitTypeDef SPI_InitStructure;
     GPIO_InitTypeDef GPIO_InitStructure;
 
-    /* 使能SPI引脚相关的时钟 */
+    /* Enable clocks for SPI-related pins */
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_SPI1,
                                ENABLE);
 
-    /* 配置SPI的 CS引脚，普通IO即可 */
+    /* Configure SPI CS pin, general IO is fine for SPI */
     // GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
     // GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     // GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
     // GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-    /* 配置SPI的 SCK MOSI MISO引脚*/
+    /* Configure SPI SCK, MOSI, MISO pins */
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
     // GPIO_SetBits(GPIOA, GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7);
 
-    /* 停止信号 FLASH: CS引脚高电平*/
+    /* Stop signal FLASH: CS pin high level */
     // GPIO_SetBits(GPIOA, GPIO_Pin_4);
 
-    /* SPI 模式配置 */
-    // FLASH芯片 支持SPI模式0及模式3，据此设置CPOL CPHA
+    /* SPI mode configuration */
+    // FLASH chip supports SPI mode 0 and mode 3, set CPOL CPHA accordingly
     SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
     SPI_InitStructure.SPI_Mode = SPI_Mode_Slave;
     SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
@@ -46,7 +46,7 @@ void spi_Init(void)
     NVIC_InitStruct.NVIC_IRQChannelSubPriority = 3;
     NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStruct);
-    /* 使能 SPI  */
+    /* Enable SPI */
     SPI_Cmd(SPI1, ENABLE);
     SPI_I2S_ITConfig(SPI1, SPI_I2S_IT_RXNE, ENABLE);
 }

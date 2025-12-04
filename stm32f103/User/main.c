@@ -24,6 +24,8 @@
 //#include "lwip/snmp.h"
 #include "lwip/timeouts.h"
 #include "elog.h"
+#include "client.h"
+#include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
 #define tskSTACK_SIZE       (128)
@@ -35,17 +37,22 @@ static void task1(void * pvParameters)
 {
     for(;;) {
         PBout(5) = !PBout(5);
-        log_d("tesk1\r\n");
+        // log_d("tesk1\r\n");
         log_d("task num:%0x\r\n", uxTaskGetNumberOfTasks());
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // SEGGER_RTT_WriteString(0, "task1\r\n");
+        SEGGER_RTT_printf(0, "task1\r\n");
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
 
 static void task2(void * pvParameters)
 {
     for(;;) {
-        PAout(5) = !PAout(5);
-        log_d("tesk2\r\n");
+        // PAout(5) = !PAout(5);
+        // log_d("tesk2:%d\r\n", __DATE__);
+        GPIO_SetBits(GPIOC, GPIO_Pin_14 | GPIO_Pin_15);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        GPIO_ResetBits(GPIOC, GPIO_Pin_14 | GPIO_Pin_15);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
@@ -54,7 +61,7 @@ static void task3(void * pvParameters)
 {
     for(;;) {
         PAout(5) = !PAout(5);
-        log_d("tesk2\r\n");
+        // log_d("tesk2\r\n");
         vTaskDelay(20);
     }
 }
@@ -64,14 +71,17 @@ static void Application(void * pvParameters)
     BaseType_t xReturn = pdPASS;
 
     TCPIP_Init();
+    client_init();
     taskENTER_CRITICAL();
     log_d("Application\r\n");
-    xReturn = xTaskCreate(task1, "task1", tskSTACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle1);
+    xReturn = xTaskCreate(task1, "task1", 1024, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
         log_d("task1 creat success\r\n");
     xReturn = xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, LED_PRIORITY, &xHandle2);
     if(xReturn == pdPASS)
         log_d("task1 creat success\r\n");
+    if(xReturn == pdPASS)
+        log_d("adc_task creat success\r\n");
     // sys_thread_new("test", task3, NULL, 512, 3);
     vTaskDelete(xHandleApp);
     taskEXIT_CRITICAL();
@@ -115,7 +125,7 @@ struct netif gnetif;
     netif_set_down(&gnetif);
 		log_d("netif failed \r\n");
   }
-  log_d("±¾µØIPµØÖ·ÊÇ:%ld.%ld.%ld.%ld\n\n",  \
+  log_d("ï¿½ï¿½ï¿½ï¿½IPï¿½ï¿½Ö·ï¿½ï¿½:%ld.%ld.%ld.%ld\n\n",  \
         ((gnetif.ip_addr.addr)&0x000000ff),       \
         (((gnetif.ip_addr.addr)&0x0000ff00)>>8),  \
         (((gnetif.ip_addr.addr)&0x00ff0000)>>16), \
@@ -142,6 +152,19 @@ static void easyLogger_init(void)
     elog_start();
 }
 
+static void io_test(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct;
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+
+    GPIO_InitStruct.GPIO_Pin = GPIO_Pin_14 | GPIO_Pin_15;
+    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;
+
+    GPIO_Init(GPIOC, &GPIO_InitStruct);
+    log_i("io test");
+}
+
 int main(void)
 {
 //    uint8_t send_data[256];
@@ -151,8 +174,13 @@ int main(void)
     led_init();
     SerialPortInit(BAUD_RATE_115200);
     // spi_Init();
+    easyLogger_init();
     log_d("SPI SLAVE\r\n");
     log_d("W5500\r\n");
+    io_test();
+    RCC_ClocksTypeDef clock;
+    RCC_GetClocksFreq(&clock);
+    log_d("SYSCLK:%d, HCLK:%d, PCLK1:%d, PCLK2:%d, ADCCLK:%d\n", clock.SYSCLK_Frequency, clock.HCLK_Frequency, clock.PCLK1_Frequency, clock.PCLK2_Frequency, clock.ADCCLK_Frequency);
 
     xReturn = xTaskCreate(Application, "task1", 512, NULL, tskIDLE_PRIORITY, &xHandleApp);
     if(xReturn == pdPASS)

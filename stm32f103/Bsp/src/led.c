@@ -3,7 +3,7 @@
 void led_init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct;
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOE, ENABLE); //要先开时钟，不然配置不成功
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOE, ENABLE); // Must enable the clock first, otherwise configuration will fail
 
     GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5;
     GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;

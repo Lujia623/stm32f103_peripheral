@@ -82,7 +82,7 @@
 
 //断言
 #define vAssertCalled(char,int) printf("Error:%s,%d\r\n",char,int)
-#define configASSERT(x) if((x)==0) vAssertCalled(__FILE__,__LINE__)
+#define configASSERT(x) if((x)==0) { vAssertCalled(__FILE__,__LINE__);  for( ;; );}
 
 /************************************************************************
  *               FreeRTOS基础配置配置选项 
@@ -138,7 +138,7 @@
 #define configCPU_CLOCK_HZ						  (SystemCoreClock)
 
 //RTOS系统节拍中断的频率。即一秒中断的次数，每次中断RTOS都会进行任务调度
-#define configTICK_RATE_HZ						  (( TickType_t )100)
+#define configTICK_RATE_HZ						  (( TickType_t )1000)
 
 //可使用的最大优先级
 #define configMAX_PRIORITIES					  (32)

@@ -3,6 +3,7 @@
         {
             "name": "Win32",
             "includePath": [
+                "${workspaceFolder}/**",
                 "${workspaceFolder}/BSP/inc/",
                 "${workspaceFolder}/BSP/src/",
                 "${workspaceFolder}/BSP/w5500",
@@ -17,8 +18,10 @@
                 "${workspaceFolder}/FreeRTOS/ports/ARM_CM3",
                 "${workspaceFolder}/lwip_2.1.2/*",
                 "${workspaceFolder}/lwip_2.1.2/include",
-                "${workspaceFolder}/lwip_2.1.2/include/arch",
-                "${workspaceFolder}/lwip_2.1.2/include/lwip"
+                "${workspaceFolder}/lwip_2.1.2/include/lwip",
+                "${workspaceFolder}/User/arch",
+                "${workspaceFolder}/easylogger/inc",
+                "${workspaceFolder}/User/Application/inc"
             ],
             "compilerPath": "D:\\Program Files\\mingw64\\bin\\gcc.exe",
             "cStandard": "c17",

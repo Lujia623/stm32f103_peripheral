@@ -4,7 +4,7 @@
 void key_init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct;
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);//要先开时钟，不然配置不成功
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);//The clock must be turned on first; otherwise, the configuration will not be successful
 
     GPIO_InitStruct.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4;
     // GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;

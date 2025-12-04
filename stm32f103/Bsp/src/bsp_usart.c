@@ -242,10 +242,10 @@ void rt_kprintf(const char *fmt, ...)
 
     va_start(args, fmt);
     length = vsnprintf(rt_log_buf, sizeof(rt_log_buf) - 1, fmt, args);
-    /* 判断字符串是否超过大小范围，超过的话要裁剪 */
+    /* Determine whether the string exceeds the size range. If it does, trim it. */
     if (length > RT_CONSOLEBUF_SIZE - 1)
         length = RT_CONSOLEBUF_SIZE - 1;
- /* 如果使用设备驱动，通过设备驱动函数将缓冲区的内容输出到控制台 */
+ /* If using device drivers, output the contents of the buffer to the console through the device driver function */
 #ifdef RT_USING_DEVICE
     if (_console_device == RT_NULL)
     {
@@ -259,7 +259,7 @@ void rt_kprintf(const char *fmt, ...)
         rt_device_write(_console_device, 0, rt_log_buf, length);
         _console_device->open_flag = old_flag;
     }
-/* 如果不使用设备驱动函数，使用rt_hw_console_output()函数将缓冲区的内容输出到控制台 */
+/* If not using device drivers, use the rt_hw_console_output() function to output the contents of the buffer to the console */
 #else
     rt_hw_console_output(rt_log_buf);
 #endif

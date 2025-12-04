@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "main.h"
+#include "elog.h"
 
 // #include "arch/sys_arch.h"
 
@@ -113,5 +114,10 @@ extern u32_t sys_now(void);
 #ifndef BYTE_ORDER
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif /* BYTE_ORDER */
+
+
+#ifndef LWIP_PLATFORM_ASSERT
+#define LWIP_PLATFORM_ASSERT(x)    elog_assert("LWIP", x)
+#endif /* LWIP_PLATFORM_ASSERT */
 
 #endif /* LWIP_ARCH_CC_H */

@@ -1,3 +1,14 @@
+/**
+ * @file bsp_eth.c
+ * @author Rougga (1055700185@qq.com)
+ * @brief 
+ * @version 0.1
+ * @date 2025-12-03 {time}
+ * 
+ * @copyright Copyright (c) 2023 Rougga(1055700185qq.com). All rights reserved.
+ * 
+ */
+
 #include "bsp_eth.h"
 #include "bsp_systick.h"
 #include "bsp_serial.h"
@@ -5,7 +16,7 @@
 #include <stdlib.h>
 #include "main.h"
 
-//static SPI_TypeDef *SPIx = NULL;
+static SemaphoreHandle_t spi_sem = NULL;
 
 static void W5500_config(void)
 {
@@ -41,7 +52,7 @@ static void W5500_config(void)
     SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
     SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
     SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
+    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
     SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
     SPI_InitStructure.SPI_CRCPolynomial = 7;
     SPI_Init(SPI1, &SPI_InitStructure);
@@ -71,9 +82,11 @@ void EXTI1_IRQHandler(void)
     ulReturn = taskENTER_CRITICAL_FROM_ISR();
     if(EXTI_GetITStatus(EXTI_Line1) != RESET)
     {
-        printf("w5500 INT\r\n");
+        // printf("w5500 INT\r\n");
         EXTI_ClearITPendingBit(EXTI_Line1);
-        xSemaphoreGiveFromISR(s_xSemaphore, &xHigherPriorityTaskWoken);
+        if (s_xSemaphore != NULL) {
+            xSemaphoreGiveFromISR(s_xSemaphore, &xHigherPriorityTaskWoken);
+        }
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
     taskEXIT_CRITICAL_FROM_ISR(ulReturn);
@@ -82,45 +95,39 @@ void EXTI1_IRQHandler(void)
 static void W5500_reset(void)
 {
     GPIO_ResetBits(W5500_RESET_PORT, W5500_RESET_PIN);
-    Delay(5);
+    vTaskDelay(pdMS_TO_TICKS(10));
     GPIO_SetBits(W5500_RESET_PORT, W5500_RESET_PIN);
-    Delay(10);
+    vTaskDelay(pdMS_TO_TICKS(10));
 }
 
+/**
+ * @brief 0:link up, -1:link down
+ * 
+ * @return int8_t 
+ */
 int8_t W5500_lwip_init(void)
 {
-    uint8_t reg = 0x00;
+
+    uint8_t reg;
 
     W5500_config();
     W5500_reset();
 
-    printf("init seccuss\r\n");
-    printf("VERSIONR:%0X\r\n", VERSIONR);
     reg = getVERSIONR();
-    printf("reg:%0x\r\n", reg);
     if (reg != 0x04) {
-        printf("get version error!!!\r\n");
         return -1;
     }
-    printf("reg:%0x\r\n", reg);
     setMR(MR_RST);
-    uint8_t mr = getMR();
-    printf("mr:%0x\r\n", mr);
-    setSn_MR(0, Sn_MR_MACRAW | Sn_MR_MIP6B | Sn_MR_MMB);
+    setSn_MR(0, Sn_MR_MACRAW);
     setSn_RXBUF_SIZE(0, 16);
-    printf("getSn_RXBUF_SIZE:%0x\r\n", getSn_RXBUF_SIZE(0));
     setSn_TXBUF_SIZE(0, 16);
-    printf("getSn_TXBUF_SIZE:%0x\r\n", getSn_TXBUF_SIZE(0));
     setINTLEVEL(1);
     setSIMR(1);
     setPHYCFGR(0x58);
     setPHYCFGR(0xD8);
     setSn_IMR(0, (Sn_IR_RECV));
     setSn_CR(0, Sn_CR_OPEN);
-    setSn_IR(0, 0x1F);
-    setSIR(0);
-    // setSn_CR(0, Sn_CR_RECV);
-
+    
     return 0;
 }
 
@@ -141,10 +148,16 @@ static uint8_t spixSendRecvByte(uint8_t data)
 
 void wizchip_cris_enter(void)
 {
+    if (spi_sem == NULL) {
+        spi_sem = xSemaphoreCreateMutex();
+    }
+    xSemaphoreTake(spi_sem, portMAX_DELAY);
 }
 
 void wizchip_cris_exit(void)
 {
+    assert_param(spi_sem != NULL);
+    xSemaphoreGive(spi_sem);
 }
 
 void  wizchip_cs_select(void)

@@ -36,6 +36,87 @@
 #include "lwip/sys.h"
 #include "lwip/api.h"
 
+#include "lwip/netif.h"
+#include "tcpip.h"
+#include "lwip/init.h"
+#include <lwip/stats.h>
+#include <lwip/debug.h>
+#include <lwip/sys.h>
+#include "lwip/dhcp.h"
+#include <string.h>
+#include "lwip/sio.h"
+#include "ethernetif.h"
+#include "sys_arch.h"
+
+struct netif gnetif;
+ip4_addr_t ipaddr;
+ip4_addr_t netmask;
+ip4_addr_t gw;
+uint8_t IP_ADDRESS[4];
+uint8_t NETMASK_ADDRESS[4];
+uint8_t GATEWAY_ADDRESS[4];
+int errno;
+
+
+void TCPIP_Init(void)
+{
+  tcpip_init(NULL, NULL);
+  
+  /* IP addresses initialization */
+  /* USER CODE BEGIN 0 */
+#if LWIP_DHCP
+  ip_addr_set_zero_ip4(&ipaddr);
+  ip_addr_set_zero_ip4(&netmask);
+  ip_addr_set_zero_ip4(&gw);
+#else
+  IP4_ADDR(&ipaddr,IP_ADDR0,IP_ADDR1,IP_ADDR2,IP_ADDR3);
+  IP4_ADDR(&netmask,NETMASK_ADDR0,NETMASK_ADDR1,NETMASK_ADDR2,NETMASK_ADDR3);
+  IP4_ADDR(&gw,GW_ADDR0,GW_ADDR1,GW_ADDR2,GW_ADDR3);
+#endif /* USE_DHCP */
+  /* USER CODE END 0 */
+  /* Initilialize the LwIP stack without RTOS */
+  /* add the network interface (IPv4/IPv6) without RTOS */
+  netif_add(&gnetif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &tcpip_input);
+
+  /* Registers the default network interface */
+  netif_set_default(&gnetif);
+
+  if (netif_is_link_up(&gnetif))
+  {
+    /* When the netif is fully configured this function must be called */
+    netif_set_up(&gnetif);
+  }
+  else
+  {
+    /* When the netif link is down this function must be called */
+    netif_set_down(&gnetif);
+  }
+  
+#if LWIP_DHCP	   			//if used dhcp
+  int err;
+  /*  Creates a new DHCP client for this interface on the first call.
+  Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
+  the predefined regular intervals after starting the client.
+  You can peek in the netif->dhcp struct for the actual DHCP status.*/
+  
+  printf("This example will use DHCP to dynamically allocate IP addresses. If not needed, define LWIP_DHCP as 0 in lwipopts.h.\n\n");
+  
+  err = dhcp_start(&gnetif);      //开启dhcp
+  if(err == ERR_OK)
+    printf("lwip dhcp init success...\n\n");
+  else
+    printf("lwip dhcp init fail...\n\n");
+  while(ip_addr_cmp(&(gnetif.ip_addr),&ipaddr))   //等待dhcp分配的ip有效
+  {
+    vTaskDelay(1);
+  } 
+#endif
+  printf("The local IP address is:%d.%d.%d.%d\n\n",  \
+        ((gnetif.ip_addr.addr)&0x000000ff),       \
+        (((gnetif.ip_addr.addr)&0x0000ff00)>>8),  \
+        (((gnetif.ip_addr.addr)&0x00ff0000)>>16), \
+        ((gnetif.ip_addr.addr)&0xff000000)>>24);
+}
 
 static void client(void *thread_param)
 {
@@ -45,31 +126,34 @@ static void client(void *thread_param)
   
   uint8_t send_buf[]= "This is a TCP Client test...\n";
   
-  log_i("目地IP地址:%d.%d.%d.%d \t 端口号:%d\n\n",      \
+  log_i("Destination IP address:%d.%d.%d.%d \t Port number:%d\n\n",      \
           DEST_IP_ADDR0,DEST_IP_ADDR1,DEST_IP_ADDR2,DEST_IP_ADDR3,DEST_PORT);
   
-  log_i("请将电脑上位机设置为TCP Server.在User/arch/sys_arch.h文件中将目标IP地址修改为您电脑上的IP地址\n\n");
+  log_i("Please set the computer as TCP Server. Modify the target IP address in User/arch/sys_arch.h to your computer's IP address\n\n");
   
-  log_i("修改对应的宏定义:DEST_IP_ADDR0,DEST_IP_ADDR1,DEST_IP_ADDR2,DEST_IP_ADDR3,DEST_PORT\n\n");
+  log_i("Modify the corresponding macro definitions: DEST_IP_ADDR0, DEST_IP_ADDR1, DEST_IP_ADDR2, DEST_IP_ADDR3, DEST_PORT\n\n");
   
-  while(1)
-  {
+  while (1) {
     conn = netconn_new(NETCONN_TCP);
     if (conn == NULL)
     {
       log_d("create conn failed!\n");
-      vTaskDelay(10);
+      vTaskDelay(1000);
       continue;
     }
+  }
+
+  while(1)
+  {
     
     IP4_ADDR(&ipaddr,DEST_IP_ADDR0,DEST_IP_ADDR1,DEST_IP_ADDR2,DEST_IP_ADDR3);
 
     ret = netconn_connect(conn,&ipaddr,DEST_PORT);
-    if (ret == -1)
+    if (ret != ERR_OK)
     {
-        log_d("Connect failed!\n");
+        log_d("Connect failed! Error: %d\n", ret);
         netconn_close(conn);
-        vTaskDelay(10);
+        vTaskDelay(1000);
         continue;
     }
 
@@ -78,7 +162,13 @@ static void client(void *thread_param)
     while (1)
     {
       ret = netconn_write(conn,send_buf,sizeof(send_buf),0);
-   
+      if (ret != ERR_OK)
+      {
+        log_d("Write failed! Error: %d\n", ret);
+        vTaskDelay(1000);
+        break;
+      }
+      log_d("ret :%d, %s", ret, send_buf);
       vTaskDelay(1000);
     }
   }
@@ -88,5 +178,5 @@ static void client(void *thread_param)
 void
 client_init(void)
 {
-  sys_thread_new("client", client, NULL, 512, 4);
+  sys_thread_new("client", client, NULL, 2048, 4);
 }

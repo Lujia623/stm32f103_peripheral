@@ -52,13 +52,13 @@ uint8_t USART_Transmit(USART_TypeDef *USARTx, uint8_t *pTxData, uint16_t Size, u
 
     while(Size > 0)
     {
-        Size--;
-        while(USART_GetITStatus(USARTx, USART_IT_TXE) == RESET)
+        while(USART_GetFlagStatus(USARTx, USART_FLAG_TXE) == RESET)
         {
-            if((HAL_GetTick - tickstart) > Timeout)
+            if((HAL_GetTick() - tickstart) > Timeout)
                 return 1;
         }
         USART_SendData(USARTx, *pTxData++ & (uint8_t)0xFF);
+        Size--;
     }
     return 0;
 }

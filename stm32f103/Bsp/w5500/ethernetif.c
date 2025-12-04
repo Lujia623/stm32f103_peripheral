@@ -53,6 +53,7 @@
 #include "lwip/ethip6.h"
 #include "ethernetif.h"
 #include <string.h>
+#include "elog.h"
 
 /* Define those to better describe your network interface. */
 #define IFNAME0 'R'
@@ -72,6 +73,12 @@ SemaphoreHandle_t s_xSemaphore = NULL;
 /* Forward declarations. */
 void ethernetif_input(void *pvParameters);
 
+
+/* W5500 port functions defines */
+void wiz_transmit_pbuf(struct pbuf *p);
+int wiz_read_receive_pbuf(struct pbuf **buf);
+
+
 void w5500_IR_clr(void) {
   setSn_IR(0, 0x1F);
   setSIR(0);
@@ -87,27 +94,18 @@ void w5500_IR_clr(void) {
 static void
 low_level_init(struct netif *netif)
 {
-  uint8_t ret = 0;
-
-  ret = W5500_lwip_init();
-  if(ret == 0)
-  {
-    netif->flags |= NETIF_FLAG_LINK_UP;
-  }
-  
-
 #if LWIP_ARP || LWIP_ETHERNET 
 
   /* set MAC hardware address length */
   netif->hwaddr_len = ETH_HWADDR_LEN;
   
   /* set MAC hardware address */
-  netif->hwaddr[0] = 0x20;
-  netif->hwaddr[1] = 0x00;
-  netif->hwaddr[2] = 0x00;
-  netif->hwaddr[3] = 0x00;
-  netif->hwaddr[4] = 0x00;
-  netif->hwaddr[5] = 0x00;
+  netif->hwaddr[0] = 0x02;
+  netif->hwaddr[1] = 0xab;
+  netif->hwaddr[2] = 0xcd;
+  netif->hwaddr[3] = 0x03;
+  netif->hwaddr[4] = 0xef;
+  netif->hwaddr[5] = 0xda;
 
   /* maximum transfer unit */
   netif->mtu = MAX_MTU;
@@ -119,11 +117,21 @@ low_level_init(struct netif *netif)
 #endif /* LWIP_ARP */
 
   s_xSemaphore = xSemaphoreCreateCounting(40, 0);
+  if (s_xSemaphore != NULL) {
+    printf("s_xSemaphore creat success\r\n");
+  }
   sys_thread_new("ETHIN", 
                   ethernetif_input, 
                   netif, 
                   NETIF_IN_TASK_STACK_SIZE, 
                   NETIF_IN_TASK_PRIORITY);
+
+  int ret = W5500_lwip_init();
+  if(ret == 0)
+  {
+    netif->flags |= NETIF_FLAG_LINK_UP;
+    printf("NETIF_FLAG_LINK_UP\r\n");
+  }
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 
   /* Do whatever else is needed to initialize interface. */
@@ -148,24 +156,39 @@ low_level_init(struct netif *netif)
 static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
+  static sys_sem_t eth_output_sem = {.sem = NULL};
   struct ethernetif *ethernetif = netif->state;
 	(void)ethernetif;
   struct pbuf *q;
-  uint16_t freeSize= getSn_TX_FSR(0);
-  uint16_t length = p->tot_len;
+  uint16_t freeSize = 0;
+  uint16_t length = 0;
+
+
+  if (eth_output_sem.sem == NULL) {
+    err_t err = sys_sem_new(&eth_output_sem, 1);
+    LWIP_ASSERT("eth_output_sem creation failed", err == ERR_OK);
+  }
+  
+  sys_sem_wait(&eth_output_sem);
+  
+  length = p->tot_len;
+  freeSize = getSn_TX_FSR(0);
 
   if (freeSize < length) {
+    sys_sem_signal(&eth_output_sem);
     return ERR_BUF;
   }
 
+  wiz_send_data(0, (uint8_t *)((uint8_t *)p->payload), p->len);
   for (q = p; q != NULL; q = q->next) {
     /* Send the data from the pbuf to the interface, one pbuf at a
        time. The size of the data in each pbuf is kept in the ->len
        variable. */
     wiz_send_data(0, (uint8_t *)((uint8_t *)q->payload), q->len);
-    // send data from(q->payload, q->len);
   }
   setSn_CR(0, Sn_CR_SEND);
+
+  sys_sem_signal(&eth_output_sem);
 
   return ERR_OK;
 }
@@ -181,64 +204,67 @@ low_level_output(struct netif *netif, struct pbuf *p)
 static struct pbuf *
 low_level_input(struct netif *netif)
 {
+  static uint8_t rx_buf[1516];
   struct ethernetif *ethernetif = netif->state;
 	(void)ethernetif;
-  struct pbuf *p;
-  u16_t len, framelen;
+  struct pbuf *p = NULL;
+  struct pbuf *q = NULL;
+  u16_t len, framelen, bufferOffset, bufferToCopy;
 
   uint16_t rxRd= getSn_RX_RD(0);
   len = getSn_RX_RSR(0);
   if(len < 4) {
     goto end;
   }
-  printf("len:%0x\r\n", len);
+
   wiz_recv_data(0, (uint8_t *)&framelen, 2);
-  printf("framelen before:%0x\r\n", framelen);
+  // printf("framelen before:%0x\r\n", framelen);
   setSn_CR(0, Sn_CR_RECV);
   framelen= (framelen << 8) | (framelen >> 8);
-  printf("framelen after:%0x\r\n", framelen);
-  if (framelen > 32000) {
+  // printf("framelen after:%0x\r\n", framelen);
+  if (framelen >= 1516) {
     wiz_recv_ignore(0, framelen);
     setSn_CR(0, Sn_CR_RECV);
+    printf("framelen too large:%0x\r\n", framelen);
     goto end;
   }
 
   framelen -= 2;
+
+  if (framelen <= 0) {
+    goto end;
+  }
+  
+  if (framelen > 1516) {
+    printf("framelen too large for buffer:%d\r\n", framelen);
+    framelen = 1516;
+  }
+
   /* We allocate a pbuf chain of pbufs from the pool. */
-  p = pbuf_alloc(PBUF_RAW, framelen, PBUF_RAM);
+  p = pbuf_alloc(PBUF_RAW, framelen, PBUF_POOL);
+
+  wiz_recv_data(0, (uint8_t *)rx_buf, framelen);
+  setSn_CR(0, Sn_CR_RECV);
 
   if (p == NULL) {
+    printf("pbuf_alloc failed\r\n");
     goto end;
   }
 
-  wiz_recv_data(0, (uint8_t *)((uint8_t *)p->payload), framelen);
-  setSn_CR(0, Sn_CR_RECV);
-
-  return p;
-#if 0
-  if (p != NULL) {
-
-    /* We iterate over the pbuf chain until we have read the entire
-     * packet into the pbuf. */
-    for (q = p; q != NULL; q = q->next) {
-      /* Read enough bytes to fill this pbuf in the chain. The
-       * available data in the pbuf is given by the q->len
-       * variable.
-       * This does not necessarily have to be a memcpy, you can also preallocate
-       * pbufs for a DMA-enabled MAC and after receiving truncate it to the
-       * actually received size. In this case, ensure the tot_len member of the
-       * pbuf is the sum of the chained pbuf len members.
-       */
-      wiz_recv_data(0, (uint8_t *)((uint8_t *)q->payload), len);
-      // memcpy(q->payload, q->len);
-    }
+  bufferOffset = 0;
+  for (q = p; q != NULL; q = q->next) {
+    bufferToCopy = q->len;
+    memcpy(q->payload, (uint8_t *)(rx_buf + bufferOffset), bufferToCopy);
+    bufferOffset += bufferToCopy;
   }
-  setSn_CR(0, Sn_CR_RECV);
+
   return p;
-#endif
+
 end:
   return NULL;
 }
+
+
 #if NO_SYS
 /**
  * This function should be called when a packet is ready to be read
@@ -299,35 +325,36 @@ void ethernetif_input(void *pvParameters)
 {
   struct netif *netif;
 	struct pbuf *p = NULL;
-  //uint8_t linkstate;
+  uint8_t linkstate;
 	netif = (struct netif*) pvParameters;
+  uint8_t res = 0;
   LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
-  
+
 	while(1) 
   {
-    // w5500_IR_clr();
-    // volatile uint8_t phyReg = getPHYCFGR();
-    // linkstate = phyReg & (1 << 0);
-    // if (linkstate && !netif_is_link_up(netif))
-    // {
-    //   netif_set_link_up(netif);
-    // }
-    // else if (!linkstate && netif_is_link_up(netif))
-    // {
-    //   netif_set_link_down(netif);
-    // }
     if(xSemaphoreTake( s_xSemaphore, portMAX_DELAY ) == pdTRUE)
     {
+      // w5500_IR_clr();
+      // volatile uint8_t phyReg = getPHYCFGR();
+      // linkstate = phyReg & (1 << 0);
+      // if (linkstate && !netif_is_link_up(netif))
+      // {
+      //   netif_set_link_up(netif);
+      // }
+      // else if (!linkstate && netif_is_link_up(netif))
+      // {
+      //   netif_set_link_down(netif);
+      // }
       /* move received packet into a new pbuf */
-      printf("ethernetif_input\r\n");
-      taskENTER_CRITICAL();
+      // taskENTER_CRITICAL();
+NEXT_FRAME:
       w5500_IR_clr();
       p = low_level_input(netif);
-      taskEXIT_CRITICAL();
+      // taskEXIT_CRITICAL();
       /* points to packet payload, which starts with an Ethernet header */
       if(p != NULL)
       {
-        taskENTER_CRITICAL();
+        // taskENTER_CRITICAL();
         /* full packet send to tcpip_thread to process */
         if (netif->input(p, netif) != ERR_OK)
         {
@@ -335,10 +362,15 @@ void ethernetif_input(void *pvParameters)
           pbuf_free(p);
           p = NULL;
         }
-        taskEXIT_CRITICAL();
+        else
+        {
+          xSemaphoreTake( s_xSemaphore, 0 );
+          goto NEXT_FRAME;
+        }
+        // taskEXIT_CRITICAL();
       }
     }
-	}
+  }
 }
 
 #endif /* NO_SYS */
@@ -401,13 +433,9 @@ ethernetif_init(struct netif *netif)
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 #endif /* LWIP_IPV4 */
 
-// #if LWIP_IPV4
-//   netif->output = etharp_output;
-// #endif /* LWIP_IPV4 */
 #if LWIP_IPV6
   netif->output_ip6 = ethip6_output;
 #endif /* LWIP_IPV6 */
-
 
   netif->linkoutput = low_level_output;
 
@@ -417,4 +445,3 @@ ethernetif_init(struct netif *netif)
 
   return ERR_OK;
 }
-

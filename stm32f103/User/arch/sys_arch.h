@@ -40,38 +40,6 @@
  */
 #define ERR_NEED_SCHED 123
 
-/* USER CODE BEGIN 0 */
-#define DEST_IP_ADDR0               192
-#define DEST_IP_ADDR1               168
-#define DEST_IP_ADDR2                 0
-#define DEST_IP_ADDR3               181
-
-#define DEST_PORT                  5001
-
-#define UDP_SERVER_PORT            5002   /* define the UDP local connection port */
-#define UDP_CLIENT_PORT            5002   /* define the UDP remote connection port */
-
-#define LOCAL_PORT                 5001
-
-/*Static IP ADDRESS: IP_ADDR0.IP_ADDR1.IP_ADDR2.IP_ADDR3 */
-#define IP_ADDR0                    192
-#define IP_ADDR1                    168
-#define IP_ADDR2                      0
-#define IP_ADDR3                    122
-
-/*NETMASK*/
-#define NETMASK_ADDR0               255
-#define NETMASK_ADDR1               255
-#define NETMASK_ADDR2               255
-#define NETMASK_ADDR3                 0
-
-/*Gateway Address*/
-#define GW_ADDR0                    192
-#define GW_ADDR1                    168
-#define GW_ADDR2                      0
-#define GW_ADDR3                      1
-/* USER CODE END 0 */
-
 /* This port includes FreeRTOS headers in sys_arch.c only.
  *  FreeRTOS uses pointers as object types. We use wrapper structs instead of
  * void pointers directly to get a tiny bit of type safety.
@@ -123,29 +91,5 @@ void sys_arch_netconn_sem_free(void);
 #define LWIP_NETCONN_THREAD_SEM_ALLOC() sys_arch_netconn_sem_alloc()
 #define LWIP_NETCONN_THREAD_SEM_FREE()  sys_arch_netconn_sem_free()
 #endif /* LWIP_NETCONN_SEM_PER_THREAD */
-void TCPIP_Init(void);
+
 #endif /* LWIP_ARCH_SYS_ARCH_H */
-// #include <lwip/opt.h>
-// #include <lwip/arch.h>
-// // #include "tcpip.h"
-
-//  /* FreeRTOSͷ�ļ� */
-// #include "FreeRTOS.h"
-// #include "task.h"
-// #include "queue.h"
-// #include "semphr.h"
-
-
-
-// #define SYS_MBOX_NULL  (QueueHandle_t)0
-// #define SYS_SEM_NULL   (SemaphoreHandle_t)0
-// #define SYS_MRTEX_NULL SYS_SEM_NULL
-// #define SYS_DEFAULT_THREAD_STACK_DEPTH	configMINIMAL_STACK_SIZE
-
-// typedef SemaphoreHandle_t sys_sem_t;
-// typedef SemaphoreHandle_t sys_mutex_t;
-// typedef QueueHandle_t sys_mbox_t;
-// typedef TaskHandle_t sys_thread_t;
-
-// typedef int sys_prot_t;
-
