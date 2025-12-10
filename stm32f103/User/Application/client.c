@@ -133,7 +133,8 @@ static void client(void *thread_param)
   
   log_i("Modify the corresponding macro definitions: DEST_IP_ADDR0, DEST_IP_ADDR1, DEST_IP_ADDR2, DEST_IP_ADDR3, DEST_PORT\n\n");
   
-  while (1) {
+  while(1)
+  {
     conn = netconn_new(NETCONN_TCP);
     if (conn == NULL)
     {
@@ -141,10 +142,6 @@ static void client(void *thread_param)
       vTaskDelay(1000);
       continue;
     }
-  }
-
-  while(1)
-  {
     
     IP4_ADDR(&ipaddr,DEST_IP_ADDR0,DEST_IP_ADDR1,DEST_IP_ADDR2,DEST_IP_ADDR3);
 
@@ -153,6 +150,7 @@ static void client(void *thread_param)
     {
         log_d("Connect failed! Error: %d\n", ret);
         netconn_close(conn);
+        netconn_delete(conn);
         vTaskDelay(1000);
         continue;
     }

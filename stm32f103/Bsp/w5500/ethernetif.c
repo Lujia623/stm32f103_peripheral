@@ -157,6 +157,7 @@ static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
   static sys_sem_t eth_output_sem = {.sem = NULL};
+  static uint8_t buffer[MAX_MTU];
   struct ethernetif *ethernetif = netif->state;
 	(void)ethernetif;
   struct pbuf *q;
@@ -171,21 +172,28 @@ low_level_output(struct netif *netif, struct pbuf *p)
   
   sys_sem_wait(&eth_output_sem);
   
-  length = p->tot_len;
+  length = 0;
   freeSize = getSn_TX_FSR(0);
 
-  if (freeSize < length) {
+  if (freeSize < MAX_MTU) {
     sys_sem_signal(&eth_output_sem);
     return ERR_BUF;
   }
 
-  wiz_send_data(0, (uint8_t *)((uint8_t *)p->payload), p->len);
+  /** 
+   * Here, the data packets must be reorganized because they will be split when output.
+   *  For example, when using TCP to send data, if the data is sent in a non-copy format, 
+   * each data packet will be at least divided into two pbuf forms.
+  */
   for (q = p; q != NULL; q = q->next) {
     /* Send the data from the pbuf to the interface, one pbuf at a
        time. The size of the data in each pbuf is kept in the ->len
        variable. */
-    wiz_send_data(0, (uint8_t *)((uint8_t *)q->payload), q->len);
+    memcpy(buffer + length, q->payload, q->len);
+    length += q->len;
   }
+  
+  wiz_send_data(0, buffer, length);
   setSn_CR(0, Sn_CR_SEND);
 
   sys_sem_signal(&eth_output_sem);
@@ -204,7 +212,7 @@ low_level_output(struct netif *netif, struct pbuf *p)
 static struct pbuf *
 low_level_input(struct netif *netif)
 {
-  static uint8_t rx_buf[1516];
+  static uint8_t rx_buf[MAX_MTU];
   struct ethernetif *ethernetif = netif->state;
 	(void)ethernetif;
   struct pbuf *p = NULL;
@@ -222,7 +230,7 @@ low_level_input(struct netif *netif)
   setSn_CR(0, Sn_CR_RECV);
   framelen= (framelen << 8) | (framelen >> 8);
   // printf("framelen after:%0x\r\n", framelen);
-  if (framelen >= 1516) {
+  if (framelen >= MAX_MTU) {
     wiz_recv_ignore(0, framelen);
     setSn_CR(0, Sn_CR_RECV);
     printf("framelen too large:%0x\r\n", framelen);
@@ -235,9 +243,9 @@ low_level_input(struct netif *netif)
     goto end;
   }
   
-  if (framelen > 1516) {
+  if (framelen > MAX_MTU) {
     printf("framelen too large for buffer:%d\r\n", framelen);
-    framelen = 1516;
+    framelen = MAX_MTU;
   }
 
   /* We allocate a pbuf chain of pbufs from the pool. */

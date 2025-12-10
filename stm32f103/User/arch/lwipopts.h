@@ -27,7 +27,7 @@
  
 /* MEM_SIZE: the size of the heap memory. If the application will send
 a lot of data that needs to be copied, this should be set high. */
-#define MEM_SIZE                (4 * 1024)        // Size of lwIP heap (increase for high copy/queue workloads)
+#define MEM_SIZE                (10 * 1024)        // Size of lwIP heap (increase for high copy/queue workloads)
  
  /* MEMP_NUM_PBUF: the number of memp struct pbufs. If the application
      sends a lot of data out of ROM (or other static memory), this
@@ -47,11 +47,11 @@ a lot of data that needs to be copied, this should be set high. */
 #define MEMP_NUM_TCP_SEG        32   // Number of queued TCP segments (impacts memory and throughput)
  /* MEMP_NUM_SYS_TIMEOUT: the number of simulateously active
      timeouts. */
-#define MEMP_NUM_SYS_TIMEOUT    10   // Number of simultaneously active timeouts
+#define MEMP_NUM_SYS_TIMEOUT    120   // Number of simultaneously active timeouts
  
  /* ---------- Pbuf options ---------- */
  /* PBUF_POOL_SIZE: the number of buffers in the pbuf pool. */
-#define PBUF_POOL_SIZE          8      // Number of pbufs in PBUF_POOL
+#define PBUF_POOL_SIZE          10      // Number of pbufs in PBUF_POOL
  
  /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. */
 #define PBUF_POOL_BUFSIZE       LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)     // Size of each pbuf in PBUF_POOL
@@ -73,7 +73,7 @@ a lot of data that needs to be copied, this should be set high. */
  /*  TCP_SND_QUEUELEN: TCP sender buffer space (pbufs). This must be at least
  as much as (2 * TCP_SND_BUF/TCP_MSS) for things to work. */
  
-#define TCP_SND_QUEUELEN        (8* TCP_SND_BUF/TCP_MSS)  // TCP send queue length in pbufs (>= 2*SND_BUF/MSS)
+#define TCP_SND_QUEUELEN        (2* TCP_SND_BUF/TCP_MSS)  // TCP send queue length in pbufs (>= 2*SND_BUF/MSS)
 
  /* TCP receive window. */
 #define TCP_WND                 (4*TCP_MSS)   // TCP receive window size
@@ -171,7 +171,7 @@ a lot of data that needs to be copied, this should be set high. */
 
 
 #define TCPIP_THREAD_NAME              "lwip"        // TCP/IP thread name
-#define TCPIP_THREAD_STACKSIZE          1024         // TCP/IP thread stack size
+#define TCPIP_THREAD_STACKSIZE          2048         // TCP/IP thread stack size
 #define TCPIP_MBOX_SIZE                 8            // TCP/IP thread mailbox size
 #define TCPIP_THREAD_PRIO               (32 - 1)     // TCP/IP thread priority
 
@@ -187,7 +187,21 @@ a lot of data that needs to be copied, this should be set high. */
    ---------- Lwip Debug options ----------
    ----------------------------------------
 */
-//#define LWIP_DEBUG                      1
+// #define LWIP_DEBUG                      1
+
+// #define IP_DEBUG                     LWIP_DBG_ON
+// #define TCP_DEBUG                    LWIP_DBG_ON
+// #define TCP_INPUT_DEBUG              LWIP_DBG_ON
+// #define TCP_OUTPUT_DEBUG             LWIP_DBG_ON
+// #define TCP_RTO_DEBUG                LWIP_DBG_ON
+// #define TCP_CWND_DEBUG               LWIP_DBG_ON
+// #define TCP_WND_DEBUG                LWIP_DBG_ON
+// #define TCP_FR_DEBUG                 LWIP_DBG_ON
+// #define TCP_QLEN_DEBUG               LWIP_DBG_ON
+// #define TCP_RST_DEBUG                LWIP_DBG_ON
+
+// #define MEM_DEBUG                     LWIP_DBG_ON
+// #define MEMP_DEBUG                    LWIP_DBG_ON
 
 #endif /* __LWIPOPTS_H__ */
  

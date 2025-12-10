@@ -40,14 +40,6 @@
 #include "semphr.h"
 #include "task.h"
 
-#undef LWIP_ASSERT
-#include "main.h"
-#define LWIP_ASSERT(message, assertion)   \
-                do { if (!(assertion)) { \
-                    printf("Assertion \"%s\" failed at line %d in %s\n", \
-                    message, __LINE__, __FILE__); fflush(NULL); abort();}} while(0)
-
-
 /** Set this to 1 if you want the stack size passed to sys_thread_new() to be
  * interpreted as number of stack words (FreeRTOS-like).
  * Default is that they are interpreted as byte count (lwIP-like).

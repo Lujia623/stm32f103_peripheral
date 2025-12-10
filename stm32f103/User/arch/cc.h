@@ -115,9 +115,4 @@ extern u32_t sys_now(void);
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif /* BYTE_ORDER */
 
-
-#ifndef LWIP_PLATFORM_ASSERT
-#define LWIP_PLATFORM_ASSERT(x)    elog_assert("LWIP", x)
-#endif /* LWIP_PLATFORM_ASSERT */
-
 #endif /* LWIP_ARCH_CC_H */
