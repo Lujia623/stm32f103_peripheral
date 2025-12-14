@@ -149,8 +149,10 @@ static void client(void *thread_param)
     if (ret != ERR_OK)
     {
         log_d("Connect failed! Error: %d\n", ret);
-        netconn_close(conn);
+        /* If the connection is not established, we can simply delete it. 
+        * There is no need to perform the TCP handshake. */
         netconn_delete(conn);
+        conn = NULL;
         vTaskDelay(1000);
         continue;
     }
@@ -163,6 +165,9 @@ static void client(void *thread_param)
       if (ret != ERR_OK)
       {
         log_d("Write failed! Error: %d\n", ret);
+        netconn_close(conn);
+        netconn_delete(conn);
+        conn = NULL;
         vTaskDelay(1000);
         break;
       }
@@ -176,5 +181,5 @@ static void client(void *thread_param)
 void
 client_init(void)
 {
-  sys_thread_new("client", client, NULL, 2048, 4);
+  sys_thread_new("client", client, NULL, 1024, 4);
 }

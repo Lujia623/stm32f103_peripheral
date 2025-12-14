@@ -45,7 +45,6 @@ void Send_Byte(USART_TypeDef *USARTx, uint16_t byte)
 
 uint8_t USART_Transmit(USART_TypeDef *USARTx, uint8_t *pTxData, uint16_t Size, uint32_t Timeout)
 {
-    uint16_t* tmp;
     uint32_t tickstart = 0U;
 
     tickstart = HAL_GetTick();
@@ -60,6 +59,7 @@ uint8_t USART_Transmit(USART_TypeDef *USARTx, uint8_t *pTxData, uint16_t Size, u
         USART_SendData(USARTx, *pTxData++ & (uint8_t)0xFF);
         Size--;
     }
+    while(USART_GetFlagStatus(USARTx, USART_FLAG_TC) == RESET);
     return 0;
 }
 

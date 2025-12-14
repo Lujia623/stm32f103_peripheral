@@ -983,6 +983,11 @@
               <FileType>1</FileType>
               <FilePath>..\User\Application\client.c</FilePath>
             </File>
+            <File>
+              <FileName>tcpecho.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\tcpecho.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
