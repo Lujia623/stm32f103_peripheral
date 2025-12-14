@@ -157,7 +157,7 @@ static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
   static sys_sem_t eth_output_sem = {.sem = NULL};
-  static uint8_t buffer[MAX_MTU];
+  static uint8_t buffer[MAX_MTU_BUFFER_SIZE];
   struct ethernetif *ethernetif = netif->state;
 	(void)ethernetif;
   struct pbuf *q;
@@ -175,7 +175,8 @@ low_level_output(struct netif *netif, struct pbuf *p)
   length = 0;
   freeSize = getSn_TX_FSR(0);
 
-  if (freeSize < MAX_MTU) {
+  if (freeSize < MAX_MTU_BUFFER_SIZE) {
+    LWIP_ASSERT("freeSize < MAX_MTU", 0);
     sys_sem_signal(&eth_output_sem);
     return ERR_BUF;
   }
@@ -212,7 +213,7 @@ low_level_output(struct netif *netif, struct pbuf *p)
 static struct pbuf *
 low_level_input(struct netif *netif)
 {
-  static uint8_t rx_buf[MAX_MTU];
+  static uint8_t rx_buf[MAX_MTU_BUFFER_SIZE];
   struct ethernetif *ethernetif = netif->state;
 	(void)ethernetif;
   struct pbuf *p = NULL;
@@ -230,7 +231,7 @@ low_level_input(struct netif *netif)
   setSn_CR(0, Sn_CR_RECV);
   framelen= (framelen << 8) | (framelen >> 8);
   // printf("framelen after:%0x\r\n", framelen);
-  if (framelen >= MAX_MTU) {
+  if (framelen >= MAX_MTU_BUFFER_SIZE) {
     wiz_recv_ignore(0, framelen);
     setSn_CR(0, Sn_CR_RECV);
     printf("framelen too large:%0x\r\n", framelen);
@@ -243,9 +244,9 @@ low_level_input(struct netif *netif)
     goto end;
   }
   
-  if (framelen > MAX_MTU) {
+  if (framelen > MAX_MTU_BUFFER_SIZE) {
     printf("framelen too large for buffer:%d\r\n", framelen);
-    framelen = MAX_MTU;
+    framelen = MAX_MTU_BUFFER_SIZE;
   }
 
   /* We allocate a pbuf chain of pbufs from the pool. */
@@ -340,19 +341,8 @@ void ethernetif_input(void *pvParameters)
 
 	while(1) 
   {
-    if(xSemaphoreTake( s_xSemaphore, portMAX_DELAY ) == pdTRUE)
+    if(xSemaphoreTake( s_xSemaphore, 500 / portTICK_RATE_MS ) == pdTRUE)
     {
-      // w5500_IR_clr();
-      // volatile uint8_t phyReg = getPHYCFGR();
-      // linkstate = phyReg & (1 << 0);
-      // if (linkstate && !netif_is_link_up(netif))
-      // {
-      //   netif_set_link_up(netif);
-      // }
-      // else if (!linkstate && netif_is_link_up(netif))
-      // {
-      //   netif_set_link_down(netif);
-      // }
       /* move received packet into a new pbuf */
       // taskENTER_CRITICAL();
 NEXT_FRAME:
@@ -376,6 +366,22 @@ NEXT_FRAME:
           goto NEXT_FRAME;
         }
         // taskEXIT_CRITICAL();
+      }
+    }
+    else
+    {
+      w5500_IR_clr();
+      volatile uint8_t phyReg = getPHYCFGR();
+      linkstate = phyReg & (1 << 0);
+      if (linkstate && !netif_is_link_up(netif))
+      {
+        printf("link up\r\n");
+        netif_set_link_up(netif);
+      }
+      else if (!linkstate && netif_is_link_up(netif))
+      {
+        printf("link down\r\n");
+        netif_set_link_down(netif);
       }
     }
   }
