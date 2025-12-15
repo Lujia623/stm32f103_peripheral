@@ -199,6 +199,7 @@ a lot of data that needs to be copied, this should be set high. */
 // #define TCP_FR_DEBUG                 LWIP_DBG_ON
 // #define TCP_QLEN_DEBUG               LWIP_DBG_ON
 // #define TCP_RST_DEBUG                LWIP_DBG_ON
+// #define SOCKETS_DEBUG                  LWIP_DBG_ON
 
 // #define MEM_DEBUG                     LWIP_DBG_ON
 // #define MEMP_DEBUG                    LWIP_DBG_ON

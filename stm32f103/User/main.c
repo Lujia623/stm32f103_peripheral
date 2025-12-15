@@ -27,6 +27,7 @@
 #include "client.h"
 #include "tcpecho.h"
 #include "udpecho.h"
+#include "socket_tcp_client.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -73,7 +74,13 @@ static void Application(void * pvParameters)
     BaseType_t xReturn = pdPASS;
 
     TCPIP_Init();
+#if 0
+    /* TCP client example based on lwip netconn API */
     client_init();
+#else
+    /* TCP echo server example based on lwip netconn API */
+    socket_tcp_client_init();
+#endif
     tcpecho_init();
     udpecho_init();
     log_d("Application\r\n");
