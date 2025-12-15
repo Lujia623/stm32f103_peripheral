@@ -26,6 +26,7 @@
 #include "elog.h"
 #include "client.h"
 #include "tcpecho.h"
+#include "udpecho.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -74,6 +75,7 @@ static void Application(void * pvParameters)
     TCPIP_Init();
     client_init();
     tcpecho_init();
+    udpecho_init();
     log_d("Application\r\n");
     xReturn = xTaskCreate(task1, "task1", 1024, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
