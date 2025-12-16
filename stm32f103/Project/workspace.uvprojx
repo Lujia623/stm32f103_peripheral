@@ -988,6 +988,26 @@
               <FileType>1</FileType>
               <FilePath>..\User\Application\tcpecho.c</FilePath>
             </File>
+            <File>
+              <FileName>updecho.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\updecho.c</FilePath>
+            </File>
+            <File>
+              <FileName>socket_tcp_client.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\socket_tcp_client.c</FilePath>
+            </File>
+            <File>
+              <FileName>socket_tcp_server.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\socket_tcp_server.c</FilePath>
+            </File>
+            <File>
+              <FileName>socket_udp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\socket_udp.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

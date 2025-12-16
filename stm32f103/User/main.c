@@ -28,6 +28,8 @@
 #include "tcpecho.h"
 #include "udpecho.h"
 #include "socket_tcp_client.h"
+#include "socket_tcp_server.h"
+#include "socket_udp.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -81,8 +83,21 @@ static void Application(void * pvParameters)
     /* TCP echo server example based on lwip netconn API */
     socket_tcp_client_init();
 #endif
+#if 0
+    /* TCP server example based on lwip netconn API */
     tcpecho_init();
+#else
+    /* TCP echo server example based on lwip netconn API */
+    socket_tcp_server_init();
+#endif
+#if 0
+    /* UDP echo server example based on lwip netconn API */
     udpecho_init();
+#else
+    /* UDP echo server example based on lwip netconn API */
+    socket_udp_init();
+#endif
+    socket_udp_init();
     log_d("Application\r\n");
     xReturn = xTaskCreate(task1, "task1", 1024, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
