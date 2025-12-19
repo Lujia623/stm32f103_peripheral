@@ -10,6 +10,9 @@
  */
 
 #include "socket_tcp_server.h"
+
+#if APP_EXAMPLES_TCP_SERVER_SOCKET_ENABLED
+
 #include "lwip/opt.h"
 #include "lwip/sys.h"
 #include "lwip/sockets.h"
@@ -111,3 +114,5 @@ void socket_tcp_server_init(void)
 {
     sys_thread_new("socket_tcp_server", socket_tcp_server_thread, NULL, 1024, 5);
 }
+
+#endif /* APP_EXAMPLES_TCP_SERVER_SOCKET_ENABLED */

@@ -19,12 +19,17 @@
 /* the TCP server local port */
 #define TCPECHO_PORT        5000
 
+#include "app_examples_config.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if APP_EXAMPLES_TCP_SERVER_NETCONN_ENABLED
+
 void tcpecho_init(void);
+
+#endif /* APP_EXAMPLES_TCP_SERVER_NETCONN_ENABLED */
 
 #ifdef __cplusplus
 }

@@ -10,6 +10,9 @@
  */
 
 #include "udpecho.h"
+
+#if APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED
+
 #include "lwip/opt.h"
 #include "lwip/api.h"
 #include "lwip/sys.h"
@@ -19,8 +22,6 @@ static void udpecho_thread(void *arg)
     struct netconn *conn;
     err_t err;
     struct netbuf *buf;
-    void *data;
-    u16_t len;
 
     LWIP_UNUSED_ARG(arg);
 
@@ -54,3 +55,4 @@ void udpecho_init(void)
     sys_thread_new("udpecho", udpecho_thread, NULL, 1024, 5);
 }
 
+#endif /* APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED */

@@ -10,6 +10,9 @@
  */
 
 #include "socket_tcp_client.h"
+
+#if APP_EXAMPLES_TCP_CLIENT_SOCKET_ENABLED
+
 #include "lwip/opt.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
@@ -67,3 +70,5 @@ void socket_tcp_client_init(void)
 {
     sys_thread_new("socket_tcp_client", socket_tcp_client_thread, NULL, 1024, 5);
 }
+
+#endif /* APP_EXAMPLES_TCP_CLIENT_SOCKET_ENABLED */

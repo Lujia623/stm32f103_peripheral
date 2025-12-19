@@ -30,6 +30,8 @@
 #include "socket_tcp_client.h"
 #include "socket_tcp_server.h"
 #include "socket_udp.h"
+#include "iperf.h"
+#include "lwip_init.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -37,6 +39,8 @@
 TaskHandle_t xHandle1 = NULL;
 TaskHandle_t xHandle2 = NULL;
 TaskHandle_t xHandleApp = NULL;
+
+static void app_examples(void);
 
 static void task1(void * pvParameters)
 {
@@ -76,29 +80,7 @@ static void Application(void * pvParameters)
     BaseType_t xReturn = pdPASS;
 
     TCPIP_Init();
-#if 0
-    /* TCP client example based on lwip netconn API */
-    client_init();
-#else
-    /* TCP echo server example based on lwip netconn API */
-    socket_tcp_client_init();
-#endif
-#if 0
-    /* TCP server example based on lwip netconn API */
-    tcpecho_init();
-#else
-    /* TCP echo server example based on lwip netconn API */
-    socket_tcp_server_init();
-#endif
-#if 0
-    /* UDP echo server example based on lwip netconn API */
-    udpecho_init();
-#else
-    /* UDP echo server example based on lwip netconn API */
-    socket_udp_init();
-#endif
-    socket_udp_init();
-    log_d("Application\r\n");
+    app_examples();
     xReturn = xTaskCreate(task1, "task1", 1024, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
         log_d("task1 creat success\r\n");
@@ -149,7 +131,7 @@ struct netif gnetif;
     netif_set_down(&gnetif);
 		log_d("netif failed \r\n");
   }
-  log_d("����IP��ַ��:%ld.%ld.%ld.%ld\n\n",  \
+  log_d("local ip addr:%ld.%ld.%ld.%ld\n\n",  \
         ((gnetif.ip_addr.addr)&0x000000ff),       \
         (((gnetif.ip_addr.addr)&0x0000ff00)>>8),  \
         (((gnetif.ip_addr.addr)&0x00ff0000)>>16), \
@@ -219,5 +201,42 @@ int main(void)
         //sys_check_timeouts();
     }
 #endif /* NO_SYS */
+}
+
+static void app_examples(void)
+{
+
+#if APP_EXAMPLES_TCP_CLIENT_NETCONN_ENABLED
+    /* TCP client example based on lwip netconn API */
+    client_init();
+#endif /* APP_EXAMPLES_TCP_CLIENT_NETCONN_ENABLED */
+
+#if APP_EXAMPLES_TCP_SERVER_NETCONN_ENABLED
+    /* TCP server example based on lwip netconn API */
+    tcpecho_init();
+#endif /* APP_EXAMPLES_TCP_SERVER_NETCONN_ENABLED */
+
+#if APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED
+    /* UDP echo example based on lwip netconn API */
+    udpecho_init();
+#endif /* APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED */
+
+#if APP_EXAMPLES_TCP_CLIENT_SOCKET_ENABLED
+    /* TCP client example based on lwip socket API */
+    socket_tcp_client_init();
+#endif
+
+#if APP_EXAMPLES_TCP_SERVER_SOCKET_ENABLED
+    /* TCP server example based on lwip socket API */
+    socket_tcp_server_init();
+#endif /* APP_EXAMPLES_TCP_SERVER_SOCKET_ENABLED */
+
+#if APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED
+    /* UDP echo example based on lwip socket API */
+    socket_udp_init();
+#endif /* APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED */
+
+
+    log_i("app examples init complete.");
 }
 

@@ -10,6 +10,9 @@
  */
 
 #include "socket_udp.h"
+
+#if APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED
+
 #include "lwip/opt.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
@@ -87,3 +90,4 @@ void socket_udp_init(void)
 {
     sys_thread_new("socket_udp", socket_udp_thread, NULL, 1024, 5);
 }
+#endif /* APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED */

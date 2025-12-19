@@ -10,6 +10,9 @@
  */
 
 #include "tcpecho.h"
+
+#if APP_EXAMPLES_TCP_SERVER_NETCONN_ENABLED
+
 #include "lwip/opt.h"
 
 #if LWIP_NETCONN
@@ -149,3 +152,5 @@ void tcpecho_init(void)
 }
 
 #endif /* LWIP_NETCONN */
+
+#endif /* APP_EXAMPLES_TCP_SERVER_NETCONN_ENABLED */

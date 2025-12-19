@@ -1008,6 +1008,16 @@
               <FileType>1</FileType>
               <FilePath>..\User\Application\socket_udp.c</FilePath>
             </File>
+            <File>
+              <FileName>iperf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\iperf.c</FilePath>
+            </File>
+            <File>
+              <FileName>lwip_init.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\lwip_init.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

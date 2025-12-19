@@ -336,7 +336,7 @@ void ethernetif_input(void *pvParameters)
 	struct pbuf *p = NULL;
   uint8_t linkstate;
 	netif = (struct netif*) pvParameters;
-  uint8_t res = 0;
+
   LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
 
 	while(1) 

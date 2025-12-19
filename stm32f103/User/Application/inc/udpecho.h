@@ -12,13 +12,18 @@
 #ifndef UDPECHO_H
 #define UDPECHO_H
 
+#include "app_examples_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED
 #define UDPECHO_PORT    7000   /* The port on which to listen for incoming UDP packets */
 
 void udpecho_init(void);
+
+#endif /* APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED */
 
 #ifdef __cplusplus
 }
