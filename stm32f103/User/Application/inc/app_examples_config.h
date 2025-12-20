@@ -19,13 +19,25 @@
 /* udp echo netconn examples enabled. */
 #define APP_EXAMPLES_UDP_ECHO_NETCONN_ENABLED       0
 /* tcp client socket examples enabled. */
-#define APP_EXAMPLES_TCP_CLIENT_SOCKET_ENABLED      1
+#define APP_EXAMPLES_TCP_CLIENT_SOCKET_ENABLED      0
 /* tcp server socket examples enabled. */
-#define APP_EXAMPLES_TCP_SERVER_SOCKET_ENABLED      1
+#define APP_EXAMPLES_TCP_SERVER_SOCKET_ENABLED      0
 /* udp echo socket examples enabled. */
-#define APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED        1
-/* iperf examples enabled. */
-#define APP_EXAMPLES_IPERF_ENABLED                  0
+#define APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED        0
 
+/* iperf examples enabled, iperf server and iperf client.
+ * iperf server and iperf client examples.
+ * base on tcp protocol. */
+#define APP_EXAMPLES_IPERF_ENABLED                  1
+#if APP_EXAMPLES_IPERF_ENABLED
+/* iperf client netconn examples enabled. */
+#define APP_EXAMPLES_IPERF_CLIENT_NETCONN_ENABLED   0
+/* iperf server netconn examples enabled. */
+#define APP_EXAMPLES_IPERF_SERVER_NETCONN_ENABLED   0
+/* iperf client socket examples enabled. */
+#define APP_EXAMPLES_IPERF_CLIENT_SOCKET_ENABLED    0
+/* iperf server socket examples enabled. */
+#define APP_EXAMPLES_IPERF_SERVER_SOCKET_ENABLED    1
+#endif /* APP_EXAMPLES_IPERF_ENABLED */
 
 #endif /* APP_EXAMPLES_CONFIG_H */

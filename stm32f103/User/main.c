@@ -66,12 +66,21 @@ static void task2(void * pvParameters)
     }
 }
 
-static void task3(void * pvParameters)
+static void monitor_task(void *pvParameters)
 {
-    for(;;) {
-        PAout(5) = !PAout(5);
-        // log_d("tesk2\r\n");
-        vTaskDelay(20);
+    static char info_buffer[1024]; 
+
+    while (1) {
+        printf("\r\n--- Task Status Statistics ---\r\n");
+        printf("TaskName\tStatus\tPrio\tStackLeft\tID\r\n");
+        vTaskList(info_buffer);
+        printf("%s", info_buffer);
+
+        // printf("\r\n--- CPU Usage Statistics ---\r\n");
+        // vTaskGetRunTimeStats(info_buffer);
+        // printf("%s", info_buffer);
+
+        vTaskDelay(pdMS_TO_TICKS(5000)); // 每5秒打印一次
     }
 }
 
@@ -81,7 +90,7 @@ static void Application(void * pvParameters)
 
     TCPIP_Init();
     app_examples();
-    xReturn = xTaskCreate(task1, "task1", 1024, NULL, tskIDLE_PRIORITY, &xHandle1);
+    xReturn = xTaskCreate(task1, "task1", 512, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)
         log_d("task1 creat success\r\n");
     xReturn = xTaskCreate(task2, "task2", tskSTACK_SIZE, NULL, LED_PRIORITY, &xHandle2);
@@ -89,7 +98,7 @@ static void Application(void * pvParameters)
         log_d("task1 creat success\r\n");
     if(xReturn == pdPASS)
         log_d("adc_task creat success\r\n");
-    // sys_thread_new("test", task3, NULL, 512, 3);
+    // sys_thread_new("monitor", monitor_task, NULL, 512, tskIDLE_PRIORITY);
     vTaskDelete(xHandleApp);
 }
 
@@ -203,6 +212,13 @@ int main(void)
 #endif /* NO_SYS */
 }
 
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    printf("\r\n[CRITICAL] Stack overflow detected in task: %s !!\r\n", pcTaskName);
+    portDISABLE_INTERRUPTS();
+    while(1);
+}
+
 static void app_examples(void)
 {
 
@@ -236,6 +252,10 @@ static void app_examples(void)
     socket_udp_init();
 #endif /* APP_EXAMPLES_UDP_ECHO_SOCKET_ENABLED */
 
+#if APP_EXAMPLES_IPERF_ENABLED
+    /* iperf example */
+    iperf_init();
+#endif /* APP_EXAMPLES_IPERF_ENABLED */
 
     log_i("app examples init complete.");
 }
