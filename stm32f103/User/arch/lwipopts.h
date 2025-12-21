@@ -111,6 +111,18 @@ a lot of data that needs to be copied, this should be set high. */
  * changes its up/down status (i.e., due to DHCP IP acquisition)
  */
  #define LWIP_NETIF_STATUS_CALLBACK     1 // Status change callback (set 1 to enable)
+
+/**
+ * LWIP_DNS==1: Turn on DNS module. UDP must be available for DNS
+ * transport.
+ */
+#define LWIP_DNS                       1 // Enable DNS module
+
+#if LWIP_DNS
+#include <stdlib.h>
+#define LWIP_RAND()                     ((uint32_t)rand())
+#endif /* LWIP_DNS */
+
  /*
      --------------------------------------
      ---------- Checksum options ----------

@@ -41,6 +41,9 @@
 #endif /* APP_EXAMPLES_IPERF_ENABLED */
 
 /* used network manager */
-#define NETWORK_MANAGER_ENABLED                  1
+#define NETWORK_MANAGER_ENABLED                     1
+
+/*  http client examples enabled. */
+#define APP_EXAMPLES_HTTP_CLIENT_ENABLED            1
 
 #endif /* APP_EXAMPLES_CONFIG_H */

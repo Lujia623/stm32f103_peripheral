@@ -33,6 +33,7 @@
 #include "iperf.h"
 #include "lwip_init.h"
 #include "network_manager.h"
+#include "http_client_examples.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -261,6 +262,11 @@ static void app_examples(void)
     /* iperf example */
     iperf_init();
 #endif /* APP_EXAMPLES_IPERF_ENABLED */
+
+#if APP_EXAMPLES_HTTP_CLIENT_ENABLED
+    /* http client example */
+    http_client_init();
+#endif /* APP_EXAMPLES_HTTP_CLIENT_ENABLED */
 
     log_i("app examples init complete.");
 }

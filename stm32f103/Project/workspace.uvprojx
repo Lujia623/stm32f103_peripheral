@@ -1023,6 +1023,11 @@
               <FileType>1</FileType>
               <FilePath>..\User\Application\network_manager.c</FilePath>
             </File>
+            <File>
+              <FileName>http_client_examples.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\http_client_examples.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
