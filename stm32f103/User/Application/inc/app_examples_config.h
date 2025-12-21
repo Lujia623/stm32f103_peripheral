@@ -28,7 +28,7 @@
 /* iperf examples enabled, iperf server and iperf client.
  * iperf server and iperf client examples.
  * base on tcp protocol. */
-#define APP_EXAMPLES_IPERF_ENABLED                  1
+#define APP_EXAMPLES_IPERF_ENABLED                  0
 #if APP_EXAMPLES_IPERF_ENABLED
 /* iperf client netconn examples enabled. */
 #define APP_EXAMPLES_IPERF_CLIENT_NETCONN_ENABLED   0
@@ -39,5 +39,8 @@
 /* iperf server socket examples enabled. */
 #define APP_EXAMPLES_IPERF_SERVER_SOCKET_ENABLED    1
 #endif /* APP_EXAMPLES_IPERF_ENABLED */
+
+/* used network manager */
+#define NETWORK_MANAGER_ENABLED                  1
 
 #endif /* APP_EXAMPLES_CONFIG_H */

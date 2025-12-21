@@ -228,7 +228,6 @@ static void iperf_server_socket_thread(void *arg)
     int sockfd = -1, client_fd = -1;
     int ret;
     char *recv_buffer = NULL;
-    uint64_t recv_len;
     fd_set read_set;
     struct timeval timeout = {0};
     struct sockaddr_in server_addr = {0};

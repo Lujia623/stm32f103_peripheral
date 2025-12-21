@@ -85,7 +85,7 @@ a lot of data that needs to be copied, this should be set high. */
  /* Define LWIP_DHCP to 1 if you want DHCP configuration of
  interfaces. DHCP is not implemented in lwIP 0.5.1, however, so
  turning this on does currently not work. */
- #define LWIP_DHCP               0
+ #define LWIP_DHCP               1
  
  /* ---------- UDP options ---------- */
  #define LWIP_UDP                1
@@ -94,12 +94,23 @@ a lot of data that needs to be copied, this should be set high. */
 /* ---------- Statistics options ---------- */
 #define LWIP_STATS 0  // Disable lwIP statistics
  #define LWIP_PROVIDE_ERRNO 1
- 
+
+/**
+ * LWIP_NETIF_API==1: Support netif api (in netifapi.c)
+ */
+#define LWIP_NETIF_API                  1
+
  /* ---------- link callback options ---------- */
  /* LWIP_NETIF_LINK_CALLBACK==1: Support a callback function from an interface
  * whenever the link changes (i.e., link down)
  */
-#define LWIP_NETIF_LINK_CALLBACK        0  // Link status change callback (set 1 to enable)
+#define LWIP_NETIF_LINK_CALLBACK        1  // Link status change callback (set 1 to enable)
+
+/**
+ * LWIP_NETIF_STATUS_CALLBACK==1: Support a callback function whenever an interface
+ * changes its up/down status (i.e., due to DHCP IP acquisition)
+ */
+ #define LWIP_NETIF_STATUS_CALLBACK     1 // Status change callback (set 1 to enable)
  /*
      --------------------------------------
      ---------- Checksum options ----------

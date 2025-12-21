@@ -10,6 +10,10 @@
  */
 
 
+#include "lwip_init.h"
+
+#if !NETWORK_MANAGER_ENABLED
+
 #include "lwip/netif.h"
 #include "tcpip.h"
 #include "lwip/init.h"
@@ -21,7 +25,6 @@
 #include "lwip/sio.h"
 #include "ethernetif.h"
 #include "sys_arch.h"
-#include "lwip_init.h"
 
 static struct netif gnetif;
 static ip4_addr_t ipaddr;
@@ -88,3 +91,4 @@ void TCPIP_Init(void)
         (((gnetif.ip_addr.addr)&0x00ff0000)>>16), \
         ((gnetif.ip_addr.addr)&0xff000000)>>24);
 }
+#endif /* NETWORK_MANAGER_ENABLED */

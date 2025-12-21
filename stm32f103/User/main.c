@@ -32,6 +32,7 @@
 #include "socket_udp.h"
 #include "iperf.h"
 #include "lwip_init.h"
+#include "network_manager.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -80,7 +81,7 @@ static void monitor_task(void *pvParameters)
         // vTaskGetRunTimeStats(info_buffer);
         // printf("%s", info_buffer);
 
-        vTaskDelay(pdMS_TO_TICKS(5000)); // Ã¿5Ãë´òÓ¡Ò»´Î
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Ã¿5ï¿½ï¿½ï¿½Ó¡Ò»ï¿½ï¿½
     }
 }
 
@@ -88,7 +89,11 @@ static void Application(void * pvParameters)
 {
     BaseType_t xReturn = pdPASS;
 
+#if !NETWORK_MANAGER_ENABLED
     TCPIP_Init();
+#else
+    network_manager_init();
+#endif /* NETWORK_MANAGER_ENABLED */
     app_examples();
     xReturn = xTaskCreate(task1, "task1", 512, NULL, tskIDLE_PRIORITY, &xHandle1);
     if(xReturn == pdPASS)

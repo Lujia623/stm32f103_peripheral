@@ -12,6 +12,10 @@
 #ifndef LWIP_INIT_H
 #define LWIP_INIT_H 
 
+#include "app_examples_config.h"
+
+#if !NETWORK_MANAGER_ENABLED
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,4 +62,6 @@ void TCPIP_Init(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* NETWORK_MANAGER_ENABLED */
 #endif /* LWIP_INIT_H */

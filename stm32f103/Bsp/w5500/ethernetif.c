@@ -52,6 +52,7 @@
 #include "netif/etharp.h"
 #include "lwip/ethip6.h"
 #include "ethernetif.h"
+#include "lwip/netifapi.h"
 #include <string.h>
 #include "elog.h"
 
@@ -127,11 +128,15 @@ low_level_init(struct netif *netif)
                   NETIF_IN_TASK_PRIORITY);
 
   int ret = W5500_lwip_init();
+  /* The best approach is to have the network thread manage the network status uniformly, 
+   * rather than forcibly enabling the protocol layer. */
+#if 0
   if(ret == 0)
   {
     netif->flags |= NETIF_FLAG_LINK_UP;
     printf("NETIF_FLAG_LINK_UP\r\n");
   }
+#endif
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 
   /* Do whatever else is needed to initialize interface. */
@@ -375,13 +380,11 @@ NEXT_FRAME:
       linkstate = phyReg & (1 << 0);
       if (linkstate && !netif_is_link_up(netif))
       {
-        printf("link up\r\n");
-        netif_set_link_up(netif);
+        netifapi_netif_set_link_up(netif);
       }
       else if (!linkstate && netif_is_link_up(netif))
       {
-        printf("link down\r\n");
-        netif_set_link_down(netif);
+        netifapi_netif_set_link_down(netif);
       }
     }
   }
