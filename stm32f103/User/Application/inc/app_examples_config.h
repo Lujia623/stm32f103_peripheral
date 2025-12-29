@@ -46,4 +46,7 @@
 /*  http client examples enabled. */
 #define APP_EXAMPLES_HTTP_CLIENT_ENABLED            1
 
+/* http server examples enabled. */
+#define APP_EXAMPLES_HTTP_SERVER_ENABLED            1
+
 #endif /* APP_EXAMPLES_CONFIG_H */
