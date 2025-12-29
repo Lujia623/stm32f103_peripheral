@@ -340,7 +340,7 @@
               <MiscControls>--c99</MiscControls>
               <Define>STM32F10X_HD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Libraries\STM32F10x_StdPeriph_Driver\inc;..\Libraries\CMSIS\DeviceSupport\ST\STM32F10x;..\Libraries\CMSIS\CoreSupport;..\Bsp\inc;..\User;..\Lib\utils;..\FreeRTOS\include;..\FreeRTOS\ports\ARM_CM3;..\Bsp\w5500;..\lwip_2.1.2\include;..\lwip_2.1.2\include\compat;..\lwip_2.1.2\include\lwip;..\lwip_2.1.2\include\netif;..\lwip_2.1.2\include\lwip\apps;..\lwip_2.1.2\include\lwip\priv;..\lwip_2.1.2\include\lwip\prot;..\lwip_2.1.2\include\arch;..\User\arch;..\easylogger\inc;..\User\Application\inc;..\SEGGER_RTT</IncludePath>
+              <IncludePath>..\Libraries\STM32F10x_StdPeriph_Driver\inc;..\Libraries\CMSIS\DeviceSupport\ST\STM32F10x;..\Libraries\CMSIS\CoreSupport;..\Bsp\inc;..\User;..\Lib\utils;..\FreeRTOS\include;..\FreeRTOS\ports\ARM_CM3;..\Bsp\w5500;..\lwip_2.1.2\include;..\lwip_2.1.2\include\compat;..\lwip_2.1.2\include\lwip;..\lwip_2.1.2\include\netif;..\lwip_2.1.2\include\lwip\apps;..\lwip_2.1.2\include\lwip\priv;..\lwip_2.1.2\include\lwip\prot;..\lwip_2.1.2\include\arch;..\User\arch;..\easylogger\inc;..\User\Application\inc;..\SEGGER_RTT;..\MQTT</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1028,6 +1028,11 @@
               <FileType>1</FileType>
               <FilePath>..\User\Application\http_client_examples.c</FilePath>
             </File>
+            <File>
+              <FileName>http_server_examples.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\http_server_examples.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1042,6 +1047,66 @@
               <FileName>SEGGER_RTT_printf.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\SEGGER_RTT\SEGGER_RTT_printf.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>MQTT</GroupName>
+          <Files>
+            <File>
+              <FileName>MQTTConnectClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTConnectClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTConnectServer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTConnectServer.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTDeserializePublish.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTDeserializePublish.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTFormat.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTFormat.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTPacket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTPacket.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSerializePublish.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTSerializePublish.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSubscribeClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTSubscribeClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSubscribeServer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTSubscribeServer.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTUnsubscribeClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTUnsubscribeClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTUnsubscribeServer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\MQTTUnsubscribeServer.c</FilePath>
+            </File>
+            <File>
+              <FileName>transport.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MQTT\transport.c</FilePath>
             </File>
           </Files>
         </Group>
