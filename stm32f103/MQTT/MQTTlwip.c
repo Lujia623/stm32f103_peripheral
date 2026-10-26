@@ -14,6 +14,7 @@
 #include <string.h>
 #include <errno.h>
 
+#include "lwip/ip4_addr.h"
 #include "lwip/tcp.h"
 
 #ifndef MQTT_LWIP_CONNECT_TIMEOUT_MS
@@ -349,17 +350,16 @@ void NetworkInit(Network *n)
  */
 static int resolve_ipv4(const char *host, uint32_t *out_ip)
 {
-    uint32_t ip;
+    ip4_addr_t ip;
 
     if (host == NULL || out_ip == NULL)
     {
         return -1;
     }
 
-    ip = lwip_inet_addr(host);
-    if (ip != (uint32_t)0xFFFFFFFFu)
+    if (ip4addr_aton(host, &ip) != 0)
     {
-        *out_ip = ip;
+        *out_ip = ip.addr;
         return 0;
     }
 

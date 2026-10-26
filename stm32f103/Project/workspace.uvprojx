@@ -1059,11 +1059,6 @@
               <FilePath>..\MQTT\MQTTConnectClient.c</FilePath>
             </File>
             <File>
-              <FileName>MQTTConnectServer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MQTT\MQTTConnectServer.c</FilePath>
-            </File>
-            <File>
               <FileName>MQTTDeserializePublish.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\MQTT\MQTTDeserializePublish.c</FilePath>
@@ -1089,24 +1084,19 @@
               <FilePath>..\MQTT\MQTTSubscribeClient.c</FilePath>
             </File>
             <File>
-              <FileName>MQTTSubscribeServer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MQTT\MQTTSubscribeServer.c</FilePath>
-            </File>
-            <File>
               <FileName>MQTTUnsubscribeClient.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\MQTT\MQTTUnsubscribeClient.c</FilePath>
             </File>
             <File>
-              <FileName>MQTTUnsubscribeServer.c</FileName>
+              <FileName>MQTTClient.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\MQTT\MQTTUnsubscribeServer.c</FilePath>
+              <FilePath>..\MQTT\MQTTClient.c</FilePath>
             </File>
             <File>
-              <FileName>transport.c</FileName>
+              <FileName>MQTTlwip.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\MQTT\transport.c</FilePath>
+              <FilePath>..\MQTT\MQTTlwip.c</FilePath>
             </File>
           </Files>
         </Group>
