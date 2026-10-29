@@ -94,62 +94,99 @@ static int wait_fd(int fd, int for_write, int timeout_ms)
     return 1;
 }
 
-/*******************************************************************************
- * Timer 实现
- ******************************************************************************/
-
+/**
+ * @brief 初始化定时器，将其置为已过期状态
+ */
 void TimerInit(Timer *timer)
 {
     if (timer != NULL)
     {
-        timer->end_time = 0;
+        timer->start_time = 0;
+        timer->timeout_ms = 0;
+        timer->state = TIMER_DISARMED;
     }
 }
 
+/**
+ * @brief 检查定时器是否已经到期
+ * 
+ * @return 1：已到期（或未启动/指针为空）；0：未到期
+ */
 char TimerIsExpired(Timer *timer)
 {
-    if (timer == NULL)
+    if (timer == NULL || timer->state != TIMER_ARMED)
     {
+        return 1; /* 未启动的定时器视为已过期 */
+    }
+
+    /* 利用无符号数模 2^32 减法，即使 timer_now_ms() 翻转回绕，差值依然严格等于流逝时间 */
+    uint32_t elapsed_ms = timer_now_ms() - timer->start_time;
+
+    if (elapsed_ms >= timer->timeout_ms)
+    {
+        timer->state = TIMER_DISARMED; /* 到期后自动转为未激活状态 */
         return 1;
     }
 
-    /*
-     * 使用有符号差值判断，允许 32 位毫秒计数器回绕。
-     * 只要定时时长小于约 24.8 天，这种判断就是安全的。
-     */
-    return (int32_t)(timer_now_ms() - timer->end_time) >= 0;
+    return 0;
 }
 
+/**
+ * @brief 启动毫秒级倒计时
+ */
 void TimerCountdownMS(Timer *timer, unsigned int timeout_ms)
 {
     if (timer != NULL)
     {
-        timer->end_time = timer_now_ms() + (uint32_t)timeout_ms;
+        timer->start_time = timer_now_ms();
+        timer->timeout_ms = (uint32_t)timeout_ms;
+        timer->state = TIMER_ARMED;
     }
 }
 
+/**
+ * @brief 启动秒级倒计时
+ */
 void TimerCountdown(Timer *timer, unsigned int timeout_s)
 {
-    TimerCountdownMS(timer, timeout_s * 1000U);
+    /* 防止超大秒数相乘溢出，限定上限（例如最大 49 天） */
+    if (timeout_s > (0xFFFFFFFFU / 1000U))
+    {
+        TimerCountdownMS(timer, 0xFFFFFFFFU);
+    }
+    else
+    {
+        TimerCountdownMS(timer, timeout_s * 1000U);
+    }
 }
 
+/**
+ * @brief 获取定时器剩余毫秒数
+ */
 int TimerLeftMS(Timer *timer)
 {
-    int32_t left;
-
-    if (timer == NULL)
+    if (timer == NULL || timer->state != TIMER_ARMED)
     {
         return 0;
     }
 
-    left = (int32_t)(timer->end_time - timer_now_ms());
+    uint32_t elapsed_ms = timer_now_ms() - timer->start_time;
 
-    if (left > 0)
+    if (elapsed_ms >= timer->timeout_ms)
     {
-        return (int)left;
+        timer->state = TIMER_DISARMED;
+        return 0;
     }
 
-    return 0;
+    uint32_t left_ms = timer->timeout_ms - elapsed_ms;
+
+    /* 限制返回值符合 int 范围（最大 INT_MAX） */
+    if (left_ms > 0x7FFFFFFFU)
+    {
+        return 0x7FFFFFFF;
+    }
+
+    return (int)left_ms;
 }
 
 /*******************************************************************************
@@ -167,7 +204,9 @@ int TimerLeftMS(Timer *timer)
  */
 int lwip_mqtt_read(Network *n, unsigned char *buffer, int len, int timeout_ms)
 {
-    int rc;
+    int attempted_wait = 0;
+    int received = 0;
+    uint32_t start_ms;
 
     if (n == NULL || buffer == NULL || n->my_socket < 0)
     {
@@ -179,31 +218,63 @@ int lwip_mqtt_read(Network *n, unsigned char *buffer, int len, int timeout_ms)
         return 0;
     }
 
-    rc = wait_fd(n->my_socket, 0, timeout_ms);
-    if (rc <= 0)
-    {
-        /* 0：超时；-1：错误 */
-        return rc;
-    }
+    start_ms = timer_now_ms();
 
-    rc = lwip_recv(n->my_socket, buffer, len, 0);
-    if (rc == 0)
-    {
-        /* 对端关闭连接 */
-        return -1;
-    }
+    while (received < len) {
+        int rc;
+        int wait_rc;
+        int wait_ms;
+        int elapsed_ms;
 
-    if (rc < 0)
-    {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        if (timeout_ms < 0) {
+            wait_ms = -1;
+        } else {
+            elapsed_ms = timer_now_ms() - start_ms;
+            if (elapsed_ms >= timeout_ms) {
+                if (attempted_wait) {
+                    return received == 0 ? 0 : -1;
+                }
+                
+                wait_ms = 0; // force a final wait with zero timeout
+            } else {
+                wait_ms = timeout_ms - (int)elapsed_ms;
+            }
+        }
+
+        attempted_wait = 1;
+        wait_rc = wait_fd(n->my_socket, 0, wait_ms);
+        if (wait_rc == 0) {
+            return received == 0 ? 0 : received; // 读取部分后返回实际读取的字节数
+        }
+
+        if (wait_rc < 0) {
+            /* wait_fd 出错，检查是否被中断 */
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+
+        rc = lwip_recv(n->my_socket, buffer + received, len - received, 0);
+        if (rc > 0)
         {
-            return 0;
+            received += rc;
+            continue;
+        }
+
+        if (rc == 0)
+        {
+            return -1;
+        }
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+            continue;
         }
 
         return -1;
     }
 
-    return rc;
+    return received;
 }
 
 /**
@@ -223,8 +294,9 @@ int lwip_mqtt_read(Network *n, unsigned char *buffer, int len, int timeout_ms)
  */
 int lwip_mqtt_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
 {
-    uint32_t end_time;
+    uint32_t start_time;
     int sent = 0;
+    int first_attempt = 1;
 
     if (n == NULL || buffer == NULL || n->my_socket < 0)
     {
@@ -236,12 +308,20 @@ int lwip_mqtt_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
         return 0;
     }
 
-    end_time = timer_now_ms() + (uint32_t)timeout_ms;
+    start_time = timer_now_ms();
 
     while (sent < len)
     {
         int rc;
 
+        if (!first_attempt && timeout_ms >= 0) {
+            uint32_t elapsed_ms = timer_now_ms() - start_time;
+            if (elapsed_ms >= (uint32_t)timeout_ms) {
+                break;
+            }
+        }
+
+        first_attempt = 0;
         rc = lwip_send(n->my_socket, buffer + sent, len - sent, 0);
         if (rc > 0)
         {
@@ -251,60 +331,47 @@ int lwip_mqtt_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
 
         if (rc == 0)
         {
-            break;
+            return sent > 0 ? sent : -1;
         }
 
-        /*
-         * 非阻塞 socket 常见返回：
-         *   EAGAIN / EWOULDBLOCK：暂时不可写
-         *   EINTR：被中断，可重试
-         *   EALREADY / EINPROGRESS：连接仍在进行中，通常出现在非阻塞 connect
-         */
-        if (errno == EAGAIN ||
-            errno == EWOULDBLOCK ||
-            errno == EINTR ||
-            errno == EALREADY ||
-            errno == EINPROGRESS)
-        {
-            int left_ms;
-            int wait_rc;
-
-            left_ms = (int32_t)(end_time - timer_now_ms());
-            if (left_ms <= 0)
-            {
-                break;
-            }
-
-            wait_rc = wait_fd(n->my_socket, 1, left_ms);
-            if (wait_rc < 0)
-            {
-                break;
-            }
-
-            if (wait_rc == 0)
-            {
-                /* 超时 */
-                break;
-            }
-
+        if (errno == EINTR) {
             continue;
         }
 
-        /* 其他错误 */
-        break;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            int wait_ms, wait_rc;
+
+            if (timeout_ms < 0) {
+                wait_ms = -1;
+            } else {
+                uint32_t elapsed_ms = timer_now_ms() - start_time;
+                if (elapsed_ms >= (uint32_t)timeout_ms) {
+                    return sent;
+                }
+
+                wait_ms = timeout_ms - (int)elapsed_ms;
+            }
+
+            wait_rc = wait_fd(n->my_socket, 1, wait_ms);
+            if (wait_rc > 0) {
+                continue;
+            }
+
+            if (wait_rc == 0) {
+                return sent;
+            }
+
+            if (errno == EINTR) {
+                continue;
+            }
+
+            return -1;
+        }
+
+        return -1;
     }
 
-    if (sent > 0)
-    {
-        return sent;
-    }
-
-    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
-    {
-        return 0;
-    }
-
-    return -1;
+    return sent;
 }
 
 /**
@@ -419,6 +486,11 @@ int NetworkConnectTimeout(Network *n, char *addr, int port, int timeout_ms)
         return -1;
     }
 
+    if (n->my_socket >= 0) {
+        lwip_close(n->my_socket);
+        n->my_socket = -1;
+    }
+
     fd = lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0)
     {
@@ -512,7 +584,7 @@ void MutexInit(Mutex *mutex)
 {
     if (mutex != NULL)
     {
-        mutex->sem = xSemaphoreCreateMutex();
+        mutex->sem = xSemaphoreCreateRecursiveMutex();
     }
 }
 

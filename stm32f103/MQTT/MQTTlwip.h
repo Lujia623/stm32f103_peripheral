@@ -34,10 +34,18 @@ extern "C" {
  * Timer
  ******************************************************************************/
 
-typedef struct Timer
-{
-    uint32_t end_time;   /* 到期时间，单位 ms */
-} Timer;
+ typedef enum TimerState
+ {
+     TIMER_DISARMED = 0,  /* 未启动 / 初始状态（判定为已到期） */
+     TIMER_ARMED    = 1   /* 正在计时中 */
+ } TimerState;
+ 
+ typedef struct Timer
+ {
+     uint32_t   start_time;   /* 倒计时启动时刻的时间戳 (ms) */
+     uint32_t   timeout_ms;   /* 设定的超时总时长 (ms) */
+     TimerState state;        /* 定时器状态 */
+ } Timer;
 
 void TimerInit(Timer *timer);
 char TimerIsExpired(Timer *timer);

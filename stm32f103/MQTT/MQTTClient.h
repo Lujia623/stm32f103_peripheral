@@ -126,6 +126,7 @@ typedef struct MQTTClient
 
     Network* ipstack;
     Timer last_sent, last_received;
+    Timer ping_timer;
 #if defined(MQTT_TASK)
     Mutex mutex;
     Thread thread;
