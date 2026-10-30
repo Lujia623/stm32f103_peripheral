@@ -63,6 +63,8 @@ void MQTTClientInit(MQTTClient* c, Network* network, unsigned int command_timeou
 		unsigned char* sendbuf, size_t sendbuf_size, unsigned char* readbuf, size_t readbuf_size)
 {
     int i;
+
+    memset(c, 0, sizeof(MQTTClient));
     c->ipstack = network;
 
     for (i = 0; i < MAX_MESSAGE_HANDLERS; ++i)
@@ -76,7 +78,8 @@ void MQTTClientInit(MQTTClient* c, Network* network, unsigned int command_timeou
     c->cleansession = 0;
     c->ping_outstanding = 0;
     c->defaultMessageHandler = NULL;
-	  c->next_packetid = 1;
+    c->next_packetid = 1;
+    c->keepAliveInterval = 60;
     TimerInit(&c->last_sent);
     TimerInit(&c->last_received);
     TimerInit(&c->ping_timer);
@@ -121,8 +124,6 @@ static int decodePacket(MQTTClient* c, int* value, Timer *timeout)
 static int readPacket(MQTTClient* c, Timer* timer)
 {
     MQTTHeader header = {0};
-    int len = 0;
-    int rem_len = 0;
     int length_bytes, remaining_length;
     size_t header_length;
 
@@ -191,15 +192,17 @@ static char isTopicMatched(char* topicFilter, MQTTString* topicName)
 
     while (*curf && curn < curn_end)
     {
-        if (*curn == '/' && *curf != '/')
+        if (*curf != '+' && *curf != '#' &&
+            *curn == '/' && *curf != '/')
             break;
         if (*curf != '+' && *curf != '#' && *curf != *curn)
             break;
         if (*curf == '+')
         {   // skip until we meet the next separator, or end of string
-            char* nextpos = curn + 1;
-            while (nextpos < curn_end && *nextpos != '/')
-                nextpos = ++curn + 1;
+            while (curn < curn_end && *curn != '/')
+                curn++;
+            curf++;
+            continue;
         }
         else if (*curf == '#')
             curn = curn_end - 1;    // skip until end of string
@@ -209,6 +212,7 @@ static char isTopicMatched(char* topicFilter, MQTTString* topicName)
 
     if (curn == curn_end) {
         if (*curf == '\0') return 1;
+        if (*curf == '+' && *(curf + 1) == '\0') return 1;
         if (*curf == '/' && *(curf + 1) == '#' && *(curf + 2) == '\0') return 1;
         if (*curf == '#' && *(curf + 1) == '\0') return 1;
     }
@@ -255,10 +259,6 @@ int keepalive(MQTTClient* c)
     Timer send_timer;
     int len;
 
-    if (!c->isconnected) {
-        return FAILURE;
-    }
-
     if (c->keepAliveInterval == 0) {
         return MQTT_SUCCESS;
     }
@@ -294,8 +294,10 @@ void MQTTCleanSession(MQTTClient* c)
 {
     int i = 0;
 
-    for (i = 0; i < MAX_MESSAGE_HANDLERS; ++i)
+    for (i = 0; i < MAX_MESSAGE_HANDLERS; ++i) {
         c->messageHandlers[i].topicFilter = NULL;
+        c->messageHandlers[i].fp = NULL;
+    }
 }
 
 
@@ -305,6 +307,8 @@ void MQTTCloseSession(MQTTClient* c)
     c->isconnected = 0;
     if (c->cleansession)
         MQTTCleanSession(c);
+    if (c->ipstack != NULL && c->ipstack->disconnect != NULL)
+        c->ipstack->disconnect(c->ipstack);
 }
 
 
@@ -336,7 +340,10 @@ int cycle(MQTTClient* c, Timer* timer)
             msg.payloadlen = 0; /* this is a size_t, but deserialize publish sets this as int */
             if (MQTTDeserialize_publish(&msg.dup, &intQoS, &msg.retained, &msg.id, &topicName,
                (unsigned char**)&msg.payload, (int*)&msg.payloadlen, c->readbuf, c->readbuf_size) != 1)
+            {
+                rc = FAILURE;
                 goto exit;
+            }
             msg.qos = (enum QoS)intQoS;
             deliverMessage(c, &topicName, &msg);
             if (msg.qos != QOS0)
@@ -429,10 +436,13 @@ void MQTTRun(void* parm)
 #if defined(MQTT_TASK)
 		MutexLock(&c->mutex);
 #endif
-		TimerCountdownMS(&timer, 500); /* Don't wait too long if no traffic is incoming */
-		cycle(c, &timer);
+        if (c->isconnected) {
+            TimerCountdownMS(&timer, 500); /* Don't wait too long if no traffic is incoming */
+            cycle(c, &timer);
+        }
 #if defined(MQTT_TASK)
 		MutexUnlock(&c->mutex);
+        vTaskDelay(pdMS_TO_TICKS(100));
 #endif
 	}
 }
@@ -471,11 +481,15 @@ int MQTTConnectWithResults(MQTTClient* c, MQTTPacket_connectData* options, MQTTC
     MQTTPacket_connectData default_options = MQTTPacket_connectData_initializer;
     int len = 0;
 
+    if (c == NULL || data == NULL) {
+        return FAILURE;
+    }
+
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
 #endif
-	  if (c->isconnected) /* don't send connect packet again if we are already connected */
-		  goto exit;
+    if (c->isconnected) /* don't send connect packet again if we are already connected */
+        goto exit;
 
     TimerInit(&connect_timer);
     TimerCountdownMS(&connect_timer, c->command_timeout_ms);
@@ -579,6 +593,10 @@ int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qo
     unsigned short requested_id;
     int requested_qos = (int)qos;
 
+    if (c == NULL || data == NULL) {
+        return FAILURE;
+    }
+
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
 #endif
@@ -613,7 +631,13 @@ int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qo
             
             if (granted_qos <= requested_qos && granted_qos >= QOS0 && granted_qos <= QOS2) {
                 rc = MQTTSetMessageHandler(c, topicFilter, messageHandler);
+            } else {
+                rc = FAILURE;
             }
+        }
+        else
+        {
+            rc = FAILURE;
         }
     }
     else
@@ -656,7 +680,8 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
-    if ((len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic)) <= 0)
+    unsigned short requested_id = getNextPacketId(c);
+    if ((len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, requested_id, 1, &topic)) <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &timer)) != MQTT_SUCCESS) // send the subscribe packet
         goto exit; // there was a problem
@@ -664,10 +689,14 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
     if (waitfor(c, UNSUBACK, &timer) == UNSUBACK)
     {
         unsigned short mypacketid;  // should be the same as the packetid above
-        if (MQTTDeserialize_unsuback(&mypacketid, c->readbuf, c->readbuf_size) == 1)
+        if (MQTTDeserialize_unsuback(&mypacketid, c->readbuf, c->readbuf_size) == 1 && mypacketid == requested_id)
         {
             /* remove the subscription message handler associated with this topic, if there is one */
             MQTTSetMessageHandler(c, topicFilter, NULL);
+        }
+        else
+        {
+            rc = FAILURE;
         }
     }
     else

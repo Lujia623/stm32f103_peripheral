@@ -232,7 +232,7 @@ int lwip_mqtt_read(Network *n, unsigned char *buffer, int len, int timeout_ms)
             elapsed_ms = timer_now_ms() - start_ms;
             if (elapsed_ms >= timeout_ms) {
                 if (attempted_wait) {
-                    return received == 0 ? 0 : -1;
+                    return received == 0 ? 0 : received;    // 读取部分后返回实际读取的字节数
                 }
                 
                 wait_ms = 0; // force a final wait with zero timeout
@@ -595,7 +595,7 @@ int MutexLock(Mutex *mutex)
         return -1;
     }
 
-    if (xSemaphoreTake(mutex->sem, portMAX_DELAY) == pdTRUE)
+    if (xSemaphoreTakeRecursive(mutex->sem, portMAX_DELAY) == pdTRUE)
     {
         return 0;
     }
@@ -610,7 +610,7 @@ int MutexUnlock(Mutex *mutex)
         return -1;
     }
 
-    if (xSemaphoreGive(mutex->sem) == pdTRUE)
+    if (xSemaphoreGiveRecursive(mutex->sem) == pdTRUE)
     {
         return 0;
     }

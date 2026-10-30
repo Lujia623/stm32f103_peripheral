@@ -133,7 +133,7 @@ typedef struct MQTTClient
 #endif
 } MQTTClient;
 
-#define DefaultClient {0, 0, 0, 0, NULL, NULL, 0, 0, 0}
+#define DefaultClient {0, 0, 0, 0, NULL, NULL, 0, 0, 0, 0 }
 
 
 /**
