@@ -44,7 +44,7 @@
 #define NETWORK_MANAGER_ENABLED                     1
 
 /*  http client examples enabled. */
-#define APP_EXAMPLES_HTTP_CLIENT_ENABLED            1
+#define APP_EXAMPLES_HTTP_CLIENT_ENABLED            0
 
 /* http server examples enabled. */
 #define APP_EXAMPLES_HTTP_SERVER_ENABLED            1

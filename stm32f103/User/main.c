@@ -35,6 +35,7 @@
 #include "network_manager.h"
 #include "http_client_examples.h"
 #include "http_server_examples.h"
+#include "mqtt_client_examples.h"
 #include "SEGGER_RTT.h"
 
 #define LED_PRIORITY    		2
@@ -274,6 +275,7 @@ static void app_examples(void)
     http_server_init();
 #endif /* APP_EXAMPLES_HTTP_SERVER_ENABLED */
 
+    mqtt_client_examples_init();
     log_i("app examples init complete.");
 }
 

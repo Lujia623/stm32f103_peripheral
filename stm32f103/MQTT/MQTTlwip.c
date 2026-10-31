@@ -12,8 +12,8 @@
 #include "MQTTlwip.h"
 
 #include <string.h>
-#include <errno.h>
 
+#include "lwip/errno.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/tcp.h"
 

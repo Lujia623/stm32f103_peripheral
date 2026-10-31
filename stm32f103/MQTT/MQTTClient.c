@@ -670,6 +670,7 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
     MQTTString topic = MQTTString_initializer;
     topic.cstring = (char *)topicFilter;
     int len = 0;
+    unsigned short requested_id;
 
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
@@ -680,7 +681,7 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
-    unsigned short requested_id = getNextPacketId(c);
+    requested_id = getNextPacketId(c);
     if ((len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, requested_id, 1, &topic)) <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &timer)) != MQTT_SUCCESS) // send the subscribe packet

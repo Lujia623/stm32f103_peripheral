@@ -1033,6 +1033,11 @@
               <FileType>1</FileType>
               <FilePath>..\User\Application\http_server_examples.c</FilePath>
             </File>
+            <File>
+              <FileName>mqtt_client_examples.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Application\mqtt_client_examples.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
